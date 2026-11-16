@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arman - Paper Desk</title>
+<meta name="description" content="Format student papers to the journal layout and make the authors' certificates in one step.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2032%2032%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22af%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236366f1%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23a855f7%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%229%22%20fill%3D%22url(%23af)%22%2F%3E%3Cpath%20fill%3D%22%23fff%22%20fill-rule%3D%22evenodd%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.2%22%20stroke-linejoin%3D%22round%22%20d%3D%22M16%206.4L25.7%2025.6H21.5L19.9%2022.3H12.1L10.5%2025.6H6.3ZM16%2013.7L13.9%2018.3H18.1Z%22%2F%3E%3C%2Fsvg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous">
+<script src="config.js"></script>
+<style>
+  /* Same look as the certificate generator (certificate-generator/styles.css). */
+  :root {
+    --bg-app: #0a0a0c; --bg-card: #121216; --bg-input: #1a1a22; --border: #252530;
+    --text: #e4e4e7; --text-muted: #8b8b9e; --accent: #6366f1; --accent-hover: #4f46e5; --accent-light: #818cf8;
+    --success: #10b981; --danger: #ef4444; --warn: #f59e0b;
+    --font: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-padding-top: 12px; }
+  body { background: var(--bg-app); color: var(--text); font-family: var(--font); font-size: 14.5px; line-height: 1.5;
+         min-height: 100vh; padding: 0.75rem 1.25rem 2rem; display: flex; justify-content: center; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent-light); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  .container { width: 100%; max-width: 1680px; display: flex; flex-direction: column; gap: 0.75rem; }
+
+  .header { display: flex; align-items: center; gap: 0.75rem 1rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 0.6rem; }
+  .logo { display: flex; align-items: center; gap: 0.6rem; margin-right: auto; }
+  .logo svg { width: 2rem; height: 2rem; flex: none; }
+  .header h1 { font-size: 1.2rem; font-weight: 600; }
+  .header .ver { color: var(--text-muted); font-size: 0.75rem; }
+  .pill { font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 99px; border: 1px solid var(--border); color: var(--text-muted); white-space: nowrap; }
+  .pill.ok { color: var(--success); border-color: rgba(16,185,129,.35); background: rgba(16,185,129,.08); }
+  .pill.bad { color: var(--danger); border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.08); }
+  .issuebar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; min-width: 0; }
+  .issuebar select { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem 0.7rem; max-width: 100%; min-width: 0; }
+
+  .grid-layout { display: grid; grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.6fr); gap: 1.25rem; align-items: start; }
+  @media (max-width: 980px) { .grid-layout { grid-template-columns: 1fr; } }
+  .control-panel, .work-panel { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+  .control-panel { position: sticky; top: 0.75rem; }
+  @media (max-width: 980px) { .control-panel { position: static; } }
+
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem;
+          display: flex; flex-direction: column; gap: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,.25); min-width: 0; }
+  .card-header { display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); }
+  .card-header i { color: var(--accent-light); font-size: 1.1rem; }
+  .card-header h2 { font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text); }
+
+  .template-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
+  @media (max-width: 1280px) { .template-grid { grid-template-columns: repeat(2, 1fr); } }
+  .template-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem;
+                   padding: 0.9rem 0.4rem; border: 2px solid var(--border); border-radius: 8px; background: rgba(255,255,255,.01);
+                   color: var(--text); font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: border-color .15s, background .15s; }
+  .template-card img { width: 44px; height: 44px; object-fit: contain; border-radius: 6px; background: #fff; padding: 3px; }
+  .template-card:hover { border-color: var(--accent-light); }
+  .template-card.active { border-color: var(--accent); background: rgba(99,102,241,.12); }
+  .file-name { color: var(--text-muted); font-size: 0.8rem; }
+
+  label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem; }
+  input[type=text], input[type=number] { width: 100%; padding: 0.6rem 0.75rem; background: var(--bg-input); border: 1px solid var(--border);
+                                           border-radius: 8px; }
+  input:focus { border-color: var(--accent); outline: none; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .fields .wide { grid-column: 1 / -1; }
+  .hint, .note { font-size: 0.78rem; color: var(--text-muted); }
+  .mode-toggle { display: flex; background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 3px; gap: 3px; }
+  .mode-btn { flex: 1; padding: 0.45rem 0.6rem; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); font-weight: 600; cursor: pointer; }
+  .mode-btn:hover { color: var(--text); }
+  .mode-btn.active { background: var(--accent); color: #fff; }
+  .derived { font-size: 0.82rem; padding: 0.55rem 0.7rem; border-radius: 8px; background: rgba(99,102,241,.1); border: 1px solid rgba(99,102,241,.25); }
+  .derived.bad { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.35); color: #fca5a5; }
+  .derived.warn { background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.35); color: #fcd34d; }
+  .derived.empty-note { background: transparent; border-color: var(--border); color: var(--text-muted); }
+
+  .btn { display: inline-flex; align-items: center; gap: 0.45rem; background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+         padding: 0.6rem 1.1rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: background .15s; }
+  .btn:hover { background: var(--accent-hover); }
+  .btn.ghost, .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn.ghost:hover, .btn-secondary:hover { border-color: var(--accent-light); background: transparent; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.small { padding: 0.4rem 0.8rem; font-size: 0.82rem; }
+
+  .drop { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; border: 2px dashed var(--border); border-radius: 10px;
+          padding: 1.6rem 1rem; text-align: center; cursor: pointer; background: rgba(255,255,255,.01); transition: border-color .15s, background .15s; }
+  .drop i { font-size: 1.6rem; color: var(--accent-light); }
+  .drop strong { font-size: 1rem; color: var(--text); font-weight: 600; }
+  .drop span { color: var(--text-muted); font-size: 0.8rem; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: rgba(99,102,241,.08); }
+  .drop.off { opacity: .5; cursor: not-allowed; }
+  .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
+  .bar .stats { color: var(--text-muted); font-size: 0.85rem; margin-right: auto; }
+  .bar .stats b { color: var(--text); }
+  #list { display: flex; flex-direction: column; gap: 0.75rem; }
+  .paper { padding: 1rem 1.1rem; gap: 0; background: var(--bg-input); box-shadow: none; }
+  .ptop { display: flex; gap: 0.75rem; align-items: flex-start; }
+  .num { flex: none; min-width: 3rem; text-align: center; background: rgba(99,102,241,.14); color: var(--accent-light); border-radius: 8px;
+         padding: 0.25rem 0.4rem; font-weight: 700; font-size: 0.8rem; }
+  .pmain { flex: 1; min-width: 0; }
+  .ptitle { font-weight: 600; overflow-wrap: anywhere; }
+  .pfile { font-size: 0.78rem; color: var(--text-muted); overflow-wrap: anywhere; }
+  .chip { flex: none; font-size: 0.74rem; font-weight: 600; padding: 0.2rem 0.65rem; border-radius: 99px; white-space: nowrap; border: 1px solid transparent; }
+  .chip.ok { color: var(--success); background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); }
+  .chip.warn { color: #fcd34d; background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.3); }
+  .chip.err { color: #fca5a5; background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.3); }
+  .chip.work { color: var(--accent-light); background: rgba(99,102,241,.12); border-color: rgba(99,102,241,.3); }
+  .prow { display: flex; flex-wrap: wrap; gap: 0.6rem 0.9rem; align-items: flex-end; margin-top: 0.75rem; }
+  .prow .fld { min-width: 0; }
+  .prow .doi { flex: 1 1 300px; }
+  .prow .pg { width: 6.5rem; }
+  .prow input { background: var(--bg-card); }
+  .doi-wrap { display: flex; }
+  .doi-wrap span { background: var(--bg-card); border: 1px solid var(--border); border-right: 0; border-radius: 8px 0 0 8px; padding: 0.6rem 0.6rem;
+                   font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
+  .doi-wrap input { border-radius: 0 8px 8px 0; }
+  .range { font-size: 0.82rem; color: var(--text-muted); padding-bottom: 0.6rem; }
+  .range b { color: var(--text); }
+  .auto { font-weight: 400; }
+  .acts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; align-items: center; }
+  .acts .sp { flex: 1; }
+  .linkbtn { background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 0.3rem 0.7rem;
+             font-size: 0.8rem; cursor: pointer; text-decoration: none; display: inline-block; transition: border-color .15s, color .15s; }
+  .linkbtn:hover { border-color: var(--accent-light); color: var(--accent-light); }
+  .linkbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .linkbtn.primary:hover { background: var(--accent-hover); color: #fff; }
+  .linkbtn:disabled { opacity: .4; cursor: not-allowed; }
+  .detail, .certs { margin-top: 0.85rem; border-top: 1px solid var(--border); padding-top: 0.85rem; }
+  .detail h3 { margin: 0.75rem 0 0.3rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+  .detail ul { padding-left: 1.2rem; }
+  .flags { list-style: none; padding: 0; }
+  .flag { list-style: none; margin: 0.35rem 0 0 -1.2rem; padding: 0.45rem 0.65rem; border-radius: 6px; background: rgba(245,158,11,.08);
+          border: 1px solid rgba(245,158,11,.25); color: #fcd34d; font-size: 0.84rem; }
+  .flags .flag, .mflags .flag { margin-left: 0; }
+  .flag small { display: block; opacity: .8; }
+  .good { background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.25); color: var(--success); padding: 0.45rem 0.65rem; border-radius: 6px; font-size: 0.84rem; }
+  .found { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; color: var(--text-muted); font-size: 0.84rem; }
+  .found b { color: var(--text); }
+  .err-text { color: #fca5a5; margin-top: 0.5rem; font-size: 0.85rem; }
+  .empty { text-align: center; color: var(--text-muted); padding: 1.6rem 0.5rem; }
+  .certhead { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+  .certgrid { display: grid; grid-template-columns: minmax(120px, auto) 1fr; gap: 0.4rem 0.9rem; margin-top: 0.5rem; align-items: center; font-size: 0.85rem; }
+  .certgrid .links { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .certsub { margin: 0.6rem 0 0.15rem; font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+  .certform { margin-top: 0.75rem; padding: 0.8rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; }
+  .certform .row2 { display: grid; grid-template-columns: 1fr 2fr auto; gap: 0.5rem; margin-bottom: 0.5rem; }
+  @media (max-width: 640px) { .certform .row2 { grid-template-columns: 1fr; } .fields { grid-template-columns: 1fr; } }
+
+  dialog { border: 1px solid var(--border); border-radius: 14px; padding: 0; width: min(1100px, 96vw); height: min(88vh, 900px);
+           background: var(--bg-card); color: var(--text); margin: auto; }
+  dialog::backdrop { background: rgba(0,0,0,.65); }
+  .mhead { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); }
+  .mhead h3 { font-size: 0.95rem; margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mbody { display: grid; grid-template-columns: 1fr 300px; height: calc(100% - 53px); }
+  @media (max-width: 800px) { .mbody { grid-template-columns: 1fr; } .mflags { display: none; } }
+  .mpages { overflow: auto; padding: 0.9rem; background: var(--bg-app); text-align: center; }
+  .mpages img { max-width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,.5); margin-bottom: 0.9rem; background: #fff; }
+  .mflags { overflow: auto; padding: 0.9rem; border-left: 1px solid var(--border); font-size: 0.85rem; }
+  .mflags h3 { margin-bottom: 0.5rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+  .loading { padding: 2rem; color: var(--text-muted); }
+  #toast { position: fixed; left: 50%; bottom: 1.25rem; transform: translateX(-50%); z-index: 20; max-width: min(560px, 92vw); display: flex; flex-direction: column; gap: 0.5rem; }
+  .toast { background: var(--bg-input); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 0.6rem 0.9rem; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
+  .toast.bad { border-left-color: var(--danger); color: #fca5a5; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="header">
+    <div class="logo">
+      <svg viewBox="0 0 32 32" role="img" aria-label="Arman" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="ah" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#ah)"/><path fill="#fff" fill-rule="evenodd" stroke="#fff" stroke-width="1.2" stroke-linejoin="round" d="M16 6.4L25.7 25.6H21.5L19.9 22.3H12.1L10.5 25.6H6.3ZM16 13.7L13.9 18.3H18.1Z"/></svg>
+      <h1>Arman - Paper Desk</h1>
+      <span class="ver" id="appVersion"></span>
+    </div>
+    <span class="pill" id="sysWord">Checking Word…</span>
+    <span class="pill" id="sysNode">Checking certificates…</span>
+    <div class="issuebar">
+      <select id="batchSel" aria-label="Issue"></select>
+      <button class="btn ghost small" id="newBatch" type="button"><i class="fa-solid fa-plus"></i> New issue</button>
+      <button class="btn ghost small" id="delBatch" type="button"><i class="fa-solid fa-trash"></i> Delete issue</button>
+    </div>
+  </header>
+
+  <main class="grid-layout">
+    <form class="control-panel" id="settings" autocomplete="off">
+      <div class="card">
+        <div class="card-header"><i class="fa-solid fa-book-open"></i><h2>1. Choose Journal</h2></div>
+        <div class="template-grid" id="journalGrid"></div>
+        <span class="file-name" id="journalStatus">No journal selected</span>
+        <input type="hidden" id="s_journal" name="journal" value="ijarcce">
+      </div>
+
+      <div class="card">
+        <div class="card-header"><i class="fa-solid fa-link"></i><h2>2. Issue Details</h2></div>
+        <div class="mode-toggle" id="modeToggle" role="group" aria-label="How to enter the issue details">
+          <button type="button" class="mode-btn active" data-mode="with">With DOI</button>
+          <button type="button" class="mode-btn" data-mode="without">Without DOI</button>
+        </div>
+        <div id="doiFields">
+          <label for="s_first_doi">DOI of the first paper in this issue</label>
+          <input type="text" id="s_first_doi" name="first_doi" placeholder="e.g. 10.17148/IJARCCE.2026.15817">
+          <p class="hint" style="margin-top:.4rem">Volume, issue, month, year and the first paper number are read from it.</p>
+        </div>
+        <div id="manualFields" class="fields" hidden>
+          <div><label for="s_volume">Volume</label><input type="number" min="1" id="s_volume" name="volume" placeholder="15"></div>
+          <div><label for="s_issue">Issue</label><input type="number" min="1" max="12" id="s_issue" name="issue" placeholder="8"></div>
+          <div><label for="s_year">Year</label><input type="number" min="2000" max="2100" id="s_year" name="year" placeholder="2026"></div>
+          <div><label for="s_first_paper">First paper no.</label><input type="number" min="1" id="s_first_paper" name="first_paper" placeholder="17"></div>
+        </div>
+        <div class="derived empty-note" id="derived" aria-live="polite"></div>
+        <div><label for="s_first_page">First page no.</label><input type="number" min="1" id="s_first_page" name="first_page" placeholder="1"></div>
+        <p class="hint" id="setNote">The DOI and first page of each following paper run on automatically. You can still change them for any single paper.</p>
+        <button class="btn" id="saveSet" type="submit" disabled><i class="fa-solid fa-floppy-disk"></i> Save details</button>
+      </div>
+    </form>
+
+    <section class="work-panel">
+      <div class="card">
+        <div class="card-header"><i class="fa-solid fa-cloud-arrow-up"></i><h2>3. Upload Student Papers</h2></div>
+        <label class="drop" id="drop" for="files" tabindex="0">
+          <i class="fa-solid fa-file-word"></i>
+          <strong>Drop the students' files here, or click to choose</strong>
+          <span id="dropHint">Word files (.docx, .doc). You can add several at once.</span>
+          <input type="file" id="files" accept=".docx,.doc,.rtf,.odt" multiple>
+        </label>
+        <p class="hint">Each paper is formatted and its certificates are made automatically.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><i class="fa-solid fa-layer-group"></i><h2>4. Papers &amp; Certificates</h2></div>
+        <div class="bar" id="bar" hidden>
+          <span class="stats" id="stats"></span>
+          <button class="btn ghost small" id="redoAll" type="button"><i class="fa-solid fa-rotate"></i> Re-format all</button>
+          <a class="btn small" id="zip" href="#"><i class="fa-solid fa-download"></i> Download all (ZIP)</a>
+        </div>
+        <div id="list"></div>
+        <div class="empty" id="empty">No papers in this issue yet.</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<dialog id="modal">
+  <div class="mhead"><h3 id="mTitle"></h3><button class="linkbtn" id="mClose" type="button">Close</button></div>
+  <div class="mbody">
+    <div class="mpages" id="mPages"></div>
+    <div class="mflags" id="mFlags"></div>
+  </div>
+</dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let PREFIXES = {};
+const prefixNow = () => PREFIXES[data.settings.journal] || "";
+let batches = [], cur = null, data = null, pollTimer = null, lastKey = "", expanded = new Set();
+
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if ((k === "href" || k === "src") && typeof v === "string" && v.startsWith("/")) e.setAttribute(k, link(v));
+    else if (v === true) e.setAttribute(k, "");
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) e.append(kid.nodeType ? kid : document.createTextNode(kid));
+  return e;
+}
+function toast(msg, bad) {
+  const t = h("div", { class: "toast" + (bad ? " bad" : "") }, msg);
+  $("toast").append(t);
+  setTimeout(() => t.remove(), bad ? 7000 : 3500);
+}
+const API_BASE = (window.APP_CONFIG && window.APP_CONFIG.apiBase || "").replace(/\/$/, "");
+let apiToken = "";
+try { apiToken = localStorage.getItem("pf_token") || ""; } catch (e) {}
+function link(path) {
+  if (!path.startsWith("/")) return path;
+  return API_BASE + path + (apiToken ? (path.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(apiToken) : "");
+}
+async function api(path, opts) {
+  opts = Object.assign({}, opts);
+  if (apiToken) opts.headers = Object.assign({}, opts.headers, { "X-API-Token": apiToken });
+  let res = await fetch(API_BASE + path, opts);
+  if (res.status === 401) {
+    const t = prompt("This server needs an access token. Enter it to continue:");
+    if (t) {
+      apiToken = t.trim();
+      try { localStorage.setItem("pf_token", apiToken); } catch (e) {}
+      opts.headers = Object.assign({}, opts.headers, { "X-API-Token": apiToken });
+      res = await fetch(API_BASE + path, opts);
+    }
+  }
+  let body = {};
+  try { body = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error(body.error || ("Something went wrong (" + res.status + ")."));
+  return body;
+}
+const jsonOpts = (method, obj) => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(obj || {}) });
+const base = () => "/api/batches/" + cur;
+
+/* ---------- issues ---------- */
+function renderBatches() {
+  const sel = $("batchSel");
+  sel.replaceChildren(...batches.map(b => h("option", { value: b.id, selected: b.id === cur }, b.label + (b.count ? " (" + b.count + ")" : ""))));
+}
+async function openBatch(id) {
+  cur = id; lastKey = ""; expanded.clear();
+  try { localStorage.setItem("pf_cur", id); } catch (e) {}
+  renderBatches();
+  setData(await api(base()));
+}
+$("batchSel").addEventListener("change", e => openBatch(e.target.value));
+$("newBatch").addEventListener("click", async () => {
+  const r = await api("/api/batches", jsonOpts("POST", {}));
+  batches = r.batches; cur = r.id; renderBatches(); lastKey = ""; setData(r);
+  $("s_volume").focus();
+});
+$("delBatch").addEventListener("click", async () => {
+  if (!confirm("Delete this issue and all its papers? This cannot be undone.")) return;
+  const r = await api(base(), { method: "DELETE" });
+  batches = r.batches;
+  if (!batches.length) { const n = await api("/api/batches", jsonOpts("POST", {})); batches = n.batches; }
+  openBatch(batches[0].id);
+});
+
+/* ---------- settings ---------- */
+const SET_KEYS = ["journal", "first_doi", "volume", "issue", "year", "first_paper", "first_page"];
+let MONTHS = [];
+let setMode = "with";
+function applyMode() {
+  document.querySelectorAll("#modeToggle .mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === setMode));
+  $("doiFields").hidden = setMode !== "with";
+  $("manualFields").hidden = setMode !== "without";
+}
+let parseSeq = 0, parseTimer = null;
+async function showDerived() {
+  const box = $("derived");
+  const set = (cls, text) => { box.className = "wide derived " + cls; box.textContent = text; };
+  if (setMode === "with") {
+    const doi = $("s_first_doi").value.trim();
+    if (!doi) { set("empty-note", "Paste the DOI of the first paper and the rest is filled in."); return; }
+    const mine = ++parseSeq;
+    let d;
+    try { d = await api("/api/parse-doi?doi=" + encodeURIComponent(doi)); } catch (e) { return; }
+    if (mine !== parseSeq) return;
+    if (d.error) { set("bad", d.error); return; }
+    const jr = d.journal && d.journal !== $("s_journal").value ? " The journal will be " + JOURNALS[d.journal] + " (from the DOI)." : "";
+    set(d.note ? "warn" : "", "Volume " + d.volume + " · Issue " + d.issue + " (" + d.month + ") · " + d.year + " · first paper no. " + parseInt(d.file_number, 10) + "." + jr + (d.note ? " " + d.note : ""));
+  } else {
+    const iss = parseInt($("s_issue").value, 10);
+    if (!iss) { set("empty-note", "The issue number sets the month (8 → August)."); return; }
+    if (iss < 1 || iss > 12) { set("bad", "Issue must be from 1 to 12: it sets the month."); return; }
+    set("", "Issue " + iss + " = " + MONTHS[iss - 1] + ".");
+  }
+}
+let JOURNALS = {}, LOGOS = {};
+function markJournal() {
+  document.querySelectorAll("#journalGrid .template-card").forEach(c => {
+    const on = c.dataset.key === $("s_journal").value;
+    c.classList.toggle("active", on); c.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  $("journalStatus").textContent = JOURNALS[$("s_journal").value] ? JOURNALS[$("s_journal").value] + " selected" : "No journal selected";
+}
+function renderJournals() {
+  $("journalGrid").replaceChildren(...Object.entries(JOURNALS).map(([key, name]) =>
+    h("button", { type: "button", class: "template-card", "data-key": key, "aria-pressed": "false", onclick: () => {
+      $("s_journal").value = key; markJournal();
+      $("settings").dispatchEvent(new Event("input", { bubbles: true }));
+    } }, h("img", { src: LOGOS[key], alt: "" }), h("span", {}, name))));
+}
+function fillSettings(s) {
+  SET_KEYS.forEach(k => { const el = $("s_" + k); if (document.activeElement !== el) el.value = s[k] || ""; });
+  markJournal();
+  setMode = s.mode === "with" ? "with" : (s.mode === "without" ? "without" : (s.first_doi ? "with" : "without"));
+  applyMode(); showDerived();
+  $("saveSet").disabled = true;
+}
+function formSettings() { const o = { mode: setMode }; SET_KEYS.forEach(k => o[k] = $("s_" + k).value); return o; }
+function settingsDirty() {
+  const s = data ? data.settings : {};
+  const savedMode = s.mode === "with" ? "with" : (s.mode === "without" ? "without" : (s.first_doi ? "with" : "without"));
+  return setMode !== savedMode || SET_KEYS.some(k => ($("s_" + k).value || "") !== (s[k] || ""));
+}
+document.querySelectorAll("#modeToggle .mode-btn").forEach(b => b.addEventListener("click", () => {
+  setMode = b.dataset.mode; applyMode(); showDerived(); $("saveSet").disabled = !settingsDirty();
+}));
+$("settings").addEventListener("input", () => {
+  $("saveSet").disabled = !settingsDirty();
+  clearTimeout(parseTimer); parseTimer = setTimeout(showDerived, 250);
+});
+$("settings").addEventListener("submit", async e => {
+  e.preventDefault();
+  const s = data.settings, n = formSettings();
+  let r;
+  try {
+    // a preview of what will be saved tells us whether the header changes, before anything is redone
+    const probe = setMode === "with" ? await api("/api/parse-doi?doi=" + encodeURIComponent(n.first_doi)) : null;
+    const next = probe ? { journal: probe.journal || n.journal, volume: probe.volume, issue: probe.issue, year: probe.year } : n;
+    const headerChange = ["journal", "volume", "issue", "year"].some(k => String(s[k]) !== String(next[k]));
+    if (headerChange && data.papers.length && !confirm("These details appear in every paper's header, so all " + data.papers.length + " paper(s) will be formatted again. Continue?")) return;
+    r = await api(base() + "/settings", jsonOpts("PUT", n));
+    batches = r.batches; renderBatches(); lastKey = ""; setData(r);
+    toast("Issue details saved.");
+  } catch (ex) { toast(ex.message, true); }
+});
+
+/* ---------- upload ---------- */
+const drop = $("drop"), fileInput = $("files");
+async function upload(fileList) {
+  if (!data.ready) { toast("Fill in and save the issue details first.", true); return; }
+  const fd = new FormData();
+  [...fileList].forEach(f => fd.append("papers", f));
+  try {
+    toast("Uploading " + fileList.length + " file(s)…");
+    const r = await api(base() + "/papers", { method: "POST", body: fd });
+    if (r.warning) toast(r.warning, true);
+    setData(r);
+    const hit = batches.find(b => b.id === cur); if (hit) hit.count = r.papers.length;
+    renderBatches();
+  } catch (ex) { toast(ex.message, true); }
+}
+fileInput.addEventListener("change", () => { if (fileInput.files.length) upload(fileInput.files); fileInput.value = ""; });
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => { if (e.dataTransfer.files.length) upload(e.dataTransfer.files); });
+drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
+drop.addEventListener("click", e => { if (data && !data.ready) { e.preventDefault(); toast("Fill in and save the issue details first.", true); } });
+
+/* ---------- papers ---------- */
+function setData(d) {
+  data = d;
+  fillSettings(d.settings);
+  drop.classList.toggle("off", !d.ready);
+  $("dropHint").textContent = d.ready ? "Word files (.docx, .doc). You can add several at once." : "Fill in the issue details on the left first.";
+  renderPapers();
+  clearTimeout(pollTimer);
+  if (d.busy) pollTimer = setTimeout(poll, 1500);
+}
+async function poll() {
+  try { setData(await api(base())); } catch (e) { pollTimer = setTimeout(poll, 4000); }
+}
+function chip(p) {
+  if (p.status === "error") return h("span", { class: "chip err" }, "Problem");
+  if (p.status === "done" && p.pages != null) return p.flags.length
+    ? h("span", { class: "chip warn" }, p.flags.length + " to check") : h("span", { class: "chip ok" }, "Clean");
+  return h("span", { class: "chip work" }, p.stage || (p.status === "queued" ? "Waiting…" : "Working…"));
+}
+async function patch(pid, body) {
+  try { lastKey = ""; setData(await api(base() + "/papers/" + pid, jsonOpts("PATCH", body))); }
+  catch (ex) { toast(ex.message, true); poll(); }
+}
+async function act(pid, path, opts) {
+  try { lastKey = ""; setData(await api(base() + "/papers/" + pid + path, opts)); }
+  catch (ex) { toast(ex.message, true); }
+}
+function details(p) {
+  return h("div", { class: "detail" },
+    h("div", { class: "found" }, Object.entries(p.found || {}).map(([k, v]) => h("span", {}, h("b", {}, v), " " + k.toLowerCase()))),
+    h("h3", {}, "Needs your eye"),
+    p.flags.length
+      ? h("ul", {}, p.flags.map(f => h("li", { class: "flag" }, f.message + (f.more ? " (and " + f.more + " more like this)" : ""), f.near ? h("small", {}, "near: “" + f.near + "”") : null)))
+      : h("div", { class: "good" }, "Nothing was flagged."),
+    p.flags.length ? h("p", { class: "note" }, "Each flagged place also carries a comment in the Word file. Remove them with Review → Delete → Delete All Comments in Document.") : null,
+    h("h3", {}, "Fixed automatically"),
+    h("ul", {},
+      h("li", {}, "A4 page, margins, journal header and footer, page numbers"),
+      h("li", {}, "Title, authors, abstract, headings, captions, tables and references restyled and renumbered"),
+      (p.fixes || []).map(f => h("li", {}, f))));
+}
+const certOpen = new Set();      // papers whose certificate table is open
+const certDraft = {};            // edits not saved yet, per paper
+const KIND_LABEL = { all: "All certificates in one file", group: "One group certificate" };
+function certLink(p, e, fmt, label) {
+  return h("a", { class: "linkbtn", href: "/files/" + cur + "/" + p.id + "/cert?name=" + encodeURIComponent(e.stem) + "&fmt=" + fmt }, label);
+}
+function certBox(p) {
+  const c = p.certs;
+  const box = h("div", { class: "certs" });
+  let chipEl;
+  if (!c || c.status === "working") chipEl = h("span", { class: "chip work" }, "Making certificates…");
+  else if (c.status === "error") chipEl = h("span", { class: "chip err" }, "Certificates: problem");
+  else chipEl = h("span", { class: "chip ok" }, "Certificates ready");
+  box.append(h("div", { class: "certhead" }, h("strong", {}, "Certificates"), chipEl,
+    h("button", { class: "linkbtn", type: "button", onclick: () => {
+      if (certOpen.has(p.id)) certOpen.delete(p.id);
+      else { certOpen.add(p.id); certDraft[p.id] = JSON.parse(JSON.stringify(p.cert_data || { title: p.title, authors: [] })); }
+      lastKey = ""; renderPapers();
+    } }, certOpen.has(p.id) ? "Close" : "Check / edit names")));
+  if (c && c.status === "error") box.append(h("p", { class: "err-text" }, c.error));
+  if (c && c.status === "ok") {
+    const grid = h("div", { class: "certgrid" });
+    const links = (e) => h("div", { class: "links" }, certLink(p, e, "docx", "Word"), e.pdf ? certLink(p, e, "pdf", "PDF") : null);
+    for (const e of c.files.filter(f => f.kind !== "single")) grid.append(h("div", {}, KIND_LABEL[e.kind] || e.kind), links(e));
+    box.append(grid);
+    const singles = c.files.filter(f => f.kind === "single");
+    if (singles.length) {
+      const g2 = h("div", { class: "certgrid" });
+      singles.forEach(e => g2.append(h("div", {}, (p.cert_data && p.cert_data.authors[e.index - 1] ? p.cert_data.authors[e.index - 1].name : "Author " + e.index)), links(e)));
+      box.append(h("p", { class: "certsub" }, "One certificate per author"), g2);
+    }
+  }
+  const warns = [...((c && c.warnings) || [])];
+  if (warns.length) box.append(h("ul", { class: "flags", style: "padding:0;margin:8px 0 0" }, warns.map(w => h("li", { class: "flag", style: "margin-left:0" }, w))));
+  if (certOpen.has(p.id)) box.append(certForm(p));
+  return box;
+}
+function certForm(p) {
+  const d = certDraft[p.id];
+  const form = h("div", { class: "certform" });
+  form.append(h("label", {}, "Paper title on the certificate"),
+    h("input", { type: "text", value: d.title || "", oninput: e => { d.title = e.target.value; } }),
+    h("p", { class: "certsub" }, "Authors (one certificate each)"));
+  d.authors.forEach((a, i) => {
+    form.append(h("div", { class: "row2" },
+      h("input", { type: "text", value: a.name, placeholder: "Name", "aria-label": "Name", oninput: e => { a.name = e.target.value; } }),
+      h("input", { type: "text", value: a.designation, placeholder: "Designation and college", "aria-label": "Designation", oninput: e => { a.designation = e.target.value; } }),
+      h("button", { class: "linkbtn", type: "button", "aria-label": "Remove author", onclick: () => { d.authors.splice(i, 1); lastKey = ""; renderPapers(); } }, "Remove")));
+  });
+  form.append(h("div", { class: "acts" },
+    h("button", { class: "linkbtn", type: "button", onclick: () => { d.authors.push({ name: "", designation: "" }); lastKey = ""; renderPapers(); } }, "Add author"),
+    h("button", { class: "linkbtn primary", type: "button", onclick: async () => {
+      try {
+        const r = await api(base() + "/papers/" + p.id + "/certdata", jsonOpts("PUT", d));
+        certOpen.delete(p.id); delete certDraft[p.id]; lastKey = ""; setData(r); toast("Making the certificates again…");
+      } catch (ex) { toast(ex.message, true); }
+    } }, "Save and re-make certificates"),
+    p.cert_manual ? h("button", { class: "linkbtn", type: "button", onclick: async () => {
+      try { certOpen.delete(p.id); delete certDraft[p.id]; lastKey = ""; setData(await api(base() + "/papers/" + p.id + "/certs/redo", jsonOpts("POST", { reset: true }))); }
+      catch (ex) { toast(ex.message, true); }
+    } }, "Back to what was read from the paper") : null));
+  return form;
+}
+function card(p, i, n) {
+  const done = p.status === "done" && p.pages != null;
+  const doi = h("input", { type: "text", id: "doi_" + p.id, value: p.doi.replace(prefixNow(), ""),
+    "aria-label": "DOI", disabled: !done,
+    onchange: e => patch(p.id, { doi: e.target.value.trim() }) });
+  const start = h("input", { type: "number", min: "1", value: p.start != null ? p.start : "", "aria-label": "First page", disabled: !done,
+    onchange: e => patch(p.id, { start: e.target.value }) });
+  const open = expanded.has(p.id);
+  const c = h("article", { class: "card paper", "data-id": p.id },
+    h("div", { class: "ptop" },
+      h("div", { class: "num" }, p.paper_no != null ? "#" + p.paper_no : "—"),
+      h("div", { class: "pmain" },
+        h("p", { class: "ptitle" }, p.title || p.name),
+        h("p", { class: "pfile" }, p.name)),
+      chip(p)),
+    p.error ? h("p", { class: "err-text" }, p.error) : null,
+    done ? h("div", { class: "prow" },
+      h("div", { class: "fld doi" }, h("label", {}, "DOI ", h("span", { class: "auto" }, (p.doi_manual ? "(set by you — clear to reset)" : "(automatic)"))),
+        h("div", { class: "doi-wrap" }, h("span", {}, prefixNow()), doi)),
+      h("div", { class: "fld pg" }, h("label", {}, "First page"), start),
+      h("div", { class: "range" }, p.end != null ? h("span", {}, "Pages ", h("b", {}, p.start + "–" + p.end), " (" + p.pages + ")") : "")) : null,
+    h("div", { class: "acts" },
+      h("button", { class: "linkbtn primary", type: "button", disabled: !done, onclick: () => preview(p) }, "Preview"),
+      done ? h("a", { class: "linkbtn", href: "/files/" + cur + "/" + p.id + "/docx" }, "Word file") : null,
+      done ? h("a", { class: "linkbtn", href: "/files/" + cur + "/" + p.id + "/pdf", title: "Made with Word; takes a few seconds the first time" }, "PDF") : null,
+      done ? h("a", { class: "linkbtn", href: "/files/" + cur + "/" + p.id + "/report" }, "Report") : null,
+      done ? h("a", { class: "linkbtn primary", href: "/files/" + cur + "/" + p.id + "/bundle", title: "Paper (Word and PDF), report and all certificates in one ZIP" }, "Download everything") : null,
+      done ? h("button", { class: "linkbtn", type: "button", onclick: () => { expanded.has(p.id) ? expanded.delete(p.id) : expanded.add(p.id); lastKey = ""; renderPapers(); } }, open ? "Hide details" : "Details") : null,
+      h("span", { class: "sp" }),
+      h("button", { class: "linkbtn", type: "button", disabled: i === 0, "aria-label": "Move up", title: "Move up", onclick: () => act(p.id, "/move", jsonOpts("POST", { dir: "up" })) }, "↑"),
+      h("button", { class: "linkbtn", type: "button", disabled: i === n - 1, "aria-label": "Move down", title: "Move down", onclick: () => act(p.id, "/move", jsonOpts("POST", { dir: "down" })) }, "↓"),
+      h("button", { class: "linkbtn", type: "button", onclick: () => act(p.id, "/redo", jsonOpts("POST")) }, "Re-format"),
+      h("button", { class: "linkbtn", type: "button", onclick: async () => {
+        if (!confirm("Remove “" + p.name + "” from this issue?")) return;
+        try { lastKey = ""; setData(await api(base() + "/papers/" + p.id, { method: "DELETE" })); } catch (ex) { toast(ex.message, true); }
+      } }, "Remove")),
+    done ? certBox(p) : null,
+    done && open ? details(p) : null);
+  return c;
+}
+function renderPapers() {
+  const ps = data.papers;
+  const key = JSON.stringify([ps, data.settings.journal]) + [...expanded].join() + [...certOpen].join();
+  $("empty").hidden = ps.length > 0;
+  $("bar").hidden = ps.length === 0;
+  if (key === lastKey) return;
+  const list = $("list");
+  if (list.contains(document.activeElement) && ["INPUT"].includes(document.activeElement.tagName)) return;  // don't disturb typing
+  lastKey = key;
+  list.replaceChildren(...ps.map((p, i) => card(p, i, ps.length)));
+  const done = ps.filter(p => p.status === "done" && p.pages != null);
+  const pages = done.reduce((s, p) => s + p.pages, 0);
+  const flags = done.reduce((s, p) => s + p.flags.length, 0);
+  const first = done.length ? done[0].start : null, last = done.length ? done[done.length - 1].end : null;
+  $("stats").replaceChildren(h("span", {}, h("b", {}, ps.length), " paper" + (ps.length === 1 ? "" : "s"), " · ", h("b", {}, pages), " pages",
+    first != null ? [" (", h("b", {}, first + "–" + last), ")"] : "", " · ", h("b", {}, flags), " item" + (flags === 1 ? "" : "s") + " to check"));
+  $("zip").href = link(base() + "/zip");
+  $("zip").style.visibility = done.length ? "visible" : "hidden";
+}
+$("redoAll").addEventListener("click", async () => {
+  if (!confirm("Format every paper in this issue again?")) return;
+  for (const p of data.papers) await api(base() + "/papers/" + p.id + "/redo", jsonOpts("POST"));
+  lastKey = ""; poll();
+});
+
+/* ---------- preview ---------- */
+const modal = $("modal");
+$("mClose").addEventListener("click", () => modal.close());
+modal.addEventListener("click", e => { if (e.target === modal) modal.close(); });
+async function preview(p) {
+  $("mTitle").textContent = (p.title || p.name);
+  $("mPages").replaceChildren(h("div", { class: "loading" }, "Preparing the preview with Word… this takes a few seconds."));
+  $("mFlags").replaceChildren(
+    h("h3", {}, p.flags.length ? "Needs your eye" : "All clear"),
+    ...(p.flags.length ? p.flags.map(f => h("div", { class: "flag" }, f.message + (f.more ? " (and " + f.more + " more)" : ""), f.near ? h("small", {}, "near: “" + f.near + "”") : null))
+                   : [h("div", { class: "good" }, "Nothing was flagged.")]));
+  modal.showModal();
+  try {
+    const r = await api(base() + "/papers/" + p.id + "/preview", { method: "POST" });
+    const imgs = [];
+    for (let i = 1; i <= r.pages; i++) imgs.push(h("img", { src: "/preview/" + cur + "/" + p.id + "/" + i + ".png?v=" + r.version, alt: "Page " + i + " of " + r.pages, loading: "lazy" }));
+    $("mPages").replaceChildren(...imgs);
+  } catch (ex) { $("mPages").replaceChildren(h("div", { class: "loading" }, ex.message)); }
+}
+
+/* ---------- start ---------- */
+(async () => {
+  try {
+    const meta = await api("/api/meta");
+    PREFIXES = meta.prefixes; MONTHS = meta.months; JOURNALS = meta.journals; LOGOS = meta.logos;
+    renderJournals();
+    $("sysWord").className = "pill " + (meta.health.word ? "ok" : "bad");
+    $("sysWord").textContent = meta.health.word ? "Word ready" : "Word not found";
+    $("sysNode").className = "pill " + (meta.health.node ? "ok" : "bad");
+    $("sysNode").textContent = meta.health.node ? "Certificates ready" : "Node.js not found";
+    $("appVersion").textContent = "v" + meta.version;
+    const init = await api("/api/init");
+    batches = init.batches;
+    let id = init.current;
+    try { const s = localStorage.getItem("pf_cur"); if (s && batches.some(b => b.id === s)) id = s; } catch (e) {}
+    await openBatch(id);
+  } catch (ex) { toast(ex.message, true); }
+})();
+</script>
+</body>
+</html>

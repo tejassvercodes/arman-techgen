@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Runtime batches & logs
+webapp/data/batches/*
+!webapp/data/batches/.gitkeep
+webapp/data/logs/*
+!webapp/data/logs/.gitkeep
+
+# Output generated papers
+output/*
+!output/.gitkeep
+output/new_students/*
+!output/new_students/.gitkeep
+
+# Environment & OS files
+.DS_Store
+Thumbs.db
+*.tmp

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arman - CG</title>
+    <meta name="description" content="Generate certificates in bulk from a Word (DOCX) template, downloaded as Word and PDF -- combined, individually, or as a single group certificate.">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2032%2032%22%20role%3D%22img%22%20aria-label%3D%22Arman%20-%20CG%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22af%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236366f1%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23a855f7%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%229%22%20fill%3D%22url(%23af)%22%2F%3E%3Cpath%20fill%3D%22%23fff%22%20fill-rule%3D%22evenodd%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.2%22%20stroke-linejoin%3D%22round%22%20d%3D%22M16%206.4L25.7%2025.6H21.5L19.9%2022.3H12.1L10.5%2025.6H6.3ZM16%2013.7L13.9%2018.3H18.1Z%22%2F%3E%3C%2Fsvg%3E">
+    <!-- Google Fonts -->
+    <!-- SRI needs to be added manually: this URL serves dynamically-generated CSS that varies by user agent/browser and is not a fixed pinned asset, so no single hash is valid for all clients -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous">
+    <link rel="stylesheet" href="styles.css">
+    <!-- PizZip, Docxtemplater -->
+    <script src="https://unpkg.com/pizzip@3.2.0/dist/pizzip.js" integrity="sha384-EKMdeygnsgFUPocowqWjGXhnzFAiDXk3KuOx8g8lsB5/JNEQYTWaADHxmioDiFU8" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/docxtemplater@3.37.11/build/docxtemplater.js" integrity="sha384-XUWUxRatTw9TjvEarIjhP3i7SVLihybSpZk1JM8Kuw9EYHoiWarWs/R9K64R8L23" crossorigin="anonymous"></script>
+    <!-- docx-preview (with its JSZip dependency) renders the generated certificate DOCX to HTML for the live preview.
+         If either fails to load, the Live Preview panel falls back to a plain-text summary of the parsed fields. -->
+    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/docx-preview@0.4.0/dist/docx-preview.min.js" integrity="sha384-UkwbeBm1NknJfLd5UU4RI1j7PidBeZE3tIiKY1k+n7RQ+kEJ0dkTC0u53xTtRC9r" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <svg viewBox="0 0 32 32" role="img" aria-label="Arman - CG" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="ah" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#ah)"/><path fill="#fff" fill-rule="evenodd" stroke="#fff" stroke-width="1.2" stroke-linejoin="round" d="M16 6.4L25.7 25.6H21.5L19.9 22.3H12.1L10.5 25.6H6.3ZM16 13.7L13.9 18.3H18.1Z"/></svg>
+                <h1>Arman - CG</h1>
+            </div>
+        </header>
+
+        <main class="grid-layout">
+            <!-- Left Side: Controls & Input -->
+            <section class="control-panel">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-file-invoice"></i>
+                        <h2>1. Choose e-Certificate Template</h2>
+                    </div>
+                    <div class="template-grid" id="template-grid"></div>
+                    <span class="file-name" id="template-status">No template selected</span>
+                </div>
+
+                <div class="card data-card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-keyboard"></i>
+                        <h2>2. Paste Title, Author Names &amp; Affiliations</h2>
+                    </div>
+                    <div class="textarea-container">
+                        <div class="textarea-actions">
+                            <span class="parser-status" id="parser-status">Waiting for data...</span>
+                            <button class="btn btn-sm btn-secondary" id="btn-load-demo">
+                                <i class="fa-solid fa-vial"></i> Load Example Data
+                            </button>
+                        </div>
+                        <textarea id="data-input" placeholder="Author1, Author2&#10;Professor, Electronics and Computer Engineering Technology, Bowling Green State University, Bowling Green, USA1&#10;PG Scholar, Electronics and Computer Engineering Technology, Bowling Green State University, Bowling Green, USA2" rows="6"></textarea>
+                    </div>
+                </div>
+
+                <!-- Choose (3) and Download (4) share a row -->
+                <div class="control-bottom">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-link"></i>
+                            <h2>3. Choose</h2>
+                        </div>
+                        <div class="mode-toggle" id="mode-toggle">
+                            <button type="button" class="mode-btn active" data-mode="with">With DOI</button>
+                            <button type="button" class="mode-btn" data-mode="without">Without DOI</button>
+                        </div>
+
+                        <div id="doi-fields">
+                            <input type="text" id="doi-input" class="doi-field" placeholder="e.g. 10.1234/example.2026.15817">
+                            <p class="hint">All other publication details are extracted automatically from the DOI.</p>
+                        </div>
+
+                        <div id="manual-fields" class="manual-grid" hidden>
+                            <div class="manual-row">
+                                <label>Volume<input type="text" id="vol-input" class="doi-field" placeholder="15"></label>
+                                <label>Issue<input type="text" id="issue-input" class="doi-field" placeholder="8"></label>
+                                <label>Year<input type="text" id="year-input" class="doi-field" placeholder="2026"></label>
+                                <label>File #<input type="text" id="filenum-input" class="doi-field" placeholder="17"></label>
+                            </div>
+                            <p class="hint">The issue number sets the month (8 → August). The file number is used as the filename prefix.</p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-download"></i>
+                            <h2>4. Download</h2>
+                        </div>
+                        <p class="hint" id="format-note">Every download gives you both a Word (.docx) file and a PDF.</p>
+                        <div class="download-options">
+                            <button type="button" class="download-option-btn" id="btn-download-all" disabled>
+                                <i class="fa-solid fa-file-word"></i>
+                                <span class="download-option-text">
+                                    <span class="download-option-title">All in One</span>
+                                    <span class="download-option-subtitle">Every certificate combined into a single multi-page file</span>
+                                </span>
+                            </button>
+                            <button type="button" class="download-option-btn" id="btn-download-multi" disabled>
+                                <i class="fa-solid fa-copy"></i>
+                                <span class="download-option-text">
+                                    <span class="download-option-title">Individual</span>
+                                    <span class="download-option-subtitle">Each certificate downloaded as its own separate file</span>
+                                </span>
+                            </button>
+                            <button type="button" class="download-option-btn" id="btn-download-group" disabled>
+                                <i class="fa-solid fa-users"></i>
+                                <span class="download-option-text">
+                                    <span class="download-option-title">Group</span>
+                                    <span class="download-option-subtitle">One certificate listing every author together</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Side: Live Preview, then the parsed data table -->
+            <section class="preview-panel">
+                <div class="card live-preview-card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-eye"></i>
+                        <h2>Live Preview</h2>
+                    </div>
+                    <p class="live-preview-hint">Renders the generated Word certificate for the first recipient, redrawn as you edit section 2.</p>
+                    <div class="cert-preview" id="live-preview">
+                        <p class="cert-preview-empty">Select a template and paste data to preview the certificate.</p>
+                    </div>
+                </div>
+
+                <div class="card" id="preview-card" hidden>
+                    <div class="card-header">
+                        <i class="fa-solid fa-table-list"></i>
+                        <h2>Parsed Preview</h2>
+                    </div>
+                    <div id="parse-warnings" class="parse-warnings"></div>
+                    <div class="preview-table-wrap">
+                        <table id="preview-table">
+                            <thead>
+                                <tr><th>#</th><th>Name</th><th>Designation</th><th>Paper Title</th></tr>
+                            </thead>
+                            <tbody id="preview-table-body"></tbody>
+                        </table>
+                    </div>
+                    <span id="preview-pub-info" class="preview-pub-info"></span>
+                </div>
+            </section>
+        </main>
+
+        <!-- System Logs: last, below the work area -->
+        <div class="card log-card">
+            <div class="card-header">
+                <i class="fa-solid fa-terminal"></i>
+                <h2>System Logs</h2>
+            </div>
+            <div class="logs" id="logs-container">
+                <div class="log-entry system"><i class="fa-solid fa-info-circle"></i> Application initialized. Ready for template.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- pdf-lib assembles the PDF export (see pdf-export.js). -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js" integrity="sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI" crossorigin="anonymous"></script>
+    <script src="pdf-export.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
