@@ -5,6 +5,7 @@ heights, the box size from templates/pdf/<KEY>.json) done in Python with the rea
 paper formatter can tell the certificate maker exactly which fit level to use.  The levels themselves are
 read from certificate-generator/app.js (FIT_LEVELS), so the two never drift apart.
 """
+import os
 import json
 import math
 import re
@@ -14,7 +15,7 @@ from pathlib import Path
 import pymupdf
 
 CERT_DIR = Path(__file__).resolve().parent.parent / "certificate-generator"
-FONT_DIR = Path(r"C:\Windows\Fonts")
+FONT_DIR = Path(os.environ.get("PAPERDESK_FONTS") or r"C:\Windows\Fonts")   # a Linux server points this at its fonts folder
 FIT_MARGIN_PT = 2            # same safety margin as pdf-export.js
 
 # family -> (regular, bold, italic, bold italic) font files

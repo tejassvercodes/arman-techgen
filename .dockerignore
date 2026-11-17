@@ -1,0 +1,11 @@
+.git
+__pycache__
+*.pyc
+webapp/data
+output
+inbox
+student_originals
+dad_finals
+tests
+.impeccable
+certificate-generator/.git

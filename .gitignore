@@ -18,3 +18,6 @@ output/new_students/*
 .DS_Store
 Thumbs.db
 *.tmp
+
+# Portable build
+dist/

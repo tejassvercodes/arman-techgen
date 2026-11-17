@@ -31,14 +31,16 @@ from werkzeug.utils import secure_filename
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "formatter"))
 from ijarcce_format import (format_paper, make_meta, ptext, certificate_data,  # noqa: E402
-                            DOI_PREFIXES, JOURNAL_NAMES, auto_doi as journal_auto_doi)
+                            DOI_PREFIXES, JOURNAL_NAMES)
+from core import (JOURNALS, MONTHS, settings_ok, clean_doi, parse_doi, clean_settings,  # noqa: E402
+                  auto_doi, describe)
 
 APP_VERSION = "2.0.0"
 HERE = Path(__file__).resolve().parent
 
 # ---- configuration (environment variables; the defaults suit one PC used by one person) ----------
 HOST = os.environ.get("PAPERDESK_HOST", "127.0.0.1")        # 0.0.0.0 to accept other computers
-PORT = int(os.environ.get("PAPERDESK_PORT", "5000"))
+PORT = int(os.environ.get("PAPERDESK_PORT") or os.environ.get("PORT") or "5000")   # hosts such as Render set PORT
 DATA = Path(os.environ.get("PAPERDESK_DATA", HERE / "data"))   # issues, papers, certificates, logs
 API_TOKEN = os.environ.get("PAPERDESK_TOKEN", "")            # if set, every request must carry it
 ALLOWED_ORIGINS = {o.strip().rstrip("/") for o in os.environ.get("PAPERDESK_ORIGINS", "").split(",") if o.strip()}
@@ -49,18 +51,17 @@ DEFAULTS_FILE = DATA / "defaults.json"
 PS_PAGES = ROOT / "formatter" / "word_pages.ps1"
 PS_CONVERT = ROOT / "formatter" / "word_convert.ps1"
 
-JOURNALS = dict(JOURNAL_NAMES)
 # website journal -> certificate-generator template key
 CERT_KEYS = {"ijarcce": "CCE", "iarjset": "SET", "ijireeice": "ICE", "imrjr": "RJR"}
 CERT_DIR = ROOT / "certificate-generator"
 CERT_CLI = CERT_DIR / "make-certificates.js"
-NODE = shutil.which("node")
-MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
-          "September", "October", "November", "December"]
+_BUNDLED_NODE = ROOT / "node" / "node.exe"            # the portable folder carries its own Node.js
+NODE = str(_BUNDLED_NODE) if _BUNDLED_NODE.exists() else shutil.which("node")
 ALLOWED = {".docx", ".doc", ".rtf", ".odt"}
 
 app = Flask(__name__, static_folder=str(HERE / "static"), static_url_path="/static")
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
+app.json.sort_keys = False            # journals keep their order: IJARCCE, IJIREEICE, IARJSET, IMRJR
 
 (DATA / "logs").mkdir(parents=True, exist_ok=True)
 log = logging.getLogger("paperdesk")
@@ -128,7 +129,7 @@ def load_defaults():
     d = {"journal": "ijarcce", "mode": "with", "first_doi": "", "volume": "", "issue": "", "month": "",
          "year": str(now.year), "first_paper": "1", "first_page": "1"}
     try:
-        d.update(json.loads(DEFAULTS_FILE.read_text(encoding="utf-8")))
+        pass                              # nothing is remembered between sessions
     except (OSError, ValueError):
         pass
     return d
@@ -169,102 +170,6 @@ def list_batches():
     return sorted(out, key=lambda x: -x["created"])
 
 
-def settings_ok(s):
-    return all(str(s.get(k, "")).strip() for k in ("volume", "issue", "month", "year", "first_page", "first_paper"))
-
-
-# How the issue details work, the same idea as the certificate generator's "With DOI / Without DOI":
-#   With DOI     the DOI of the issue's FIRST paper gives volume, issue, year and the first paper number.
-#   Without DOI  volume, issue, year and the first paper number are typed.
-# The issue number IS the month (issue 8 = August), so the month is never typed.  The first page is
-# always typed.  The DOI also names the journal (10.17148/IJARCCE...), so a DOI from another journal is
-# refused, or switches the journal if the choice is left to it.
-FIRST_JOURNAL_YEAR = 2011
-DOI_LAYOUTS = [(2, 2, 2), (2, 1, 2), (2, 1, 3), (2, 2, 3), (1, 2, 2), (1, 1, 2)]   # volume, issue, file digits
-
-
-def clean_doi(raw):
-    raw = (raw or "").strip()
-    for _ in range(2):                                   # "DOI: https://doi.org/10...." in either order
-        raw = re.sub(r"^doi\s*:?\s*", "", raw, flags=re.I)
-        raw = re.sub(r"^(?:https?://)?(?:dx\.)?doi\.org/", "", raw, flags=re.I)
-    return re.sub(r"\s+", "", raw)
-
-
-def parse_doi(doi):
-    """{'journal','volume','issue','year','month','file_number','error','note'} read from a DOI such as
-    10.17148/IJARCCE.2026.15817 (last number = volume 2 digits + issue + file number 2 digits)."""
-    out = {"journal": "", "volume": "", "issue": "", "year": "", "month": "", "file_number": "",
-           "error": "", "note": ""}
-    doi = clean_doi(doi)
-    if not doi:
-        return out
-    m = re.match(r"10\.17148/([A-Za-z]+)\.", doi)
-    if m:
-        out["journal"] = next((k for k, v in JOURNALS.items() if v.lower() == m.group(1).lower()), "")
-        if not out["journal"]:
-            out["error"] = "The DOI names the journal %s, which this tool doesn't know." % m.group(1)
-            return out
-    runs = re.findall(r"\d+", doi)
-    if len(runs) < 2:
-        out["error"] = "Couldn't find volume, issue and year numbers in the DOI."
-        return out
-    last, year = runs[-1], runs[-2]
-    if len(year) != 4:
-        out["error"] = "Couldn't find a 4-digit year in the DOI (found \"%s\")." % year
-        return out
-    year_n = int(year)
-    if year_n < FIRST_JOURNAL_YEAR or year_n > datetime.now().year + 1:
-        out["error"] = "The year %s in the DOI isn't possible for these journals." % year
-        return out
-    cands = []
-    for v, i, f in DOI_LAYOUTS:
-        if v + i + f != len(last):
-            continue
-        vol, issue, file = int(last[:v]), int(last[v:v + i]), last[v + i:]
-        if 1 <= vol <= year_n - FIRST_JOURNAL_YEAR + 1 and 1 <= issue <= 12:
-            cands.append((vol, issue, file))
-    if not cands:
-        out["error"] = "Couldn't read a valid volume and issue from \"%s\" in the DOI. Use Without DOI and type them." % last
-        return out
-    vol, issue, file = cands[0]
-    alt = next((c for c in cands if c[1] != issue and not c[2].startswith("0")), None)
-    if alt:
-        out["note"] = "Check the DOI: \"%s\" was read as issue %d (%s), file %s, but could also be issue %d (%s), file %s." % (
-            last, issue, MONTHS[issue - 1], file, alt[1], MONTHS[alt[1] - 1], alt[2])
-    out.update(volume=str(vol), issue=str(issue), year=year, month=MONTHS[issue - 1], file_number=file)
-    return out
-
-
-def clean_settings(src):
-    s = {"mode": "with" if str(src.get("mode", "without")) == "with" else "without",
-         "first_doi": clean_doi(src.get("first_doi", ""))}
-    for k in ("journal", "volume", "issue", "year", "first_paper", "first_page"):
-        s[k] = str(src.get(k, "")).strip()
-    if s["journal"] not in JOURNALS:
-        s["journal"] = "ijarcce"
-    if s["mode"] == "with":
-        if s["first_doi"]:
-            d = parse_doi(s["first_doi"])
-            if d["error"]:
-                raise ValueError(d["error"])
-            if d["journal"]:
-                s["journal"] = d["journal"]                  # the DOI names the journal
-            s.update(volume=d["volume"], issue=d["issue"], year=d["year"],
-                     first_paper=str(int(d["file_number"])))
-        else:
-            s.update(volume="", issue="", year="", first_paper="")
-    for k in ("volume", "issue", "year", "first_paper", "first_page"):
-        if s[k] and not s[k].isdigit():
-            raise ValueError("%s must be a number." % k.replace("_", " ").capitalize())
-    if s["issue"] and not 1 <= int(s["issue"]) <= 12:
-        raise ValueError("Issue must be a number from 1 to 12 (it sets the month).")
-    if s["year"] and len(s["year"]) != 4:
-        raise ValueError("Year must be a 4-digit number.")
-    s["month"] = MONTHS[int(s["issue"]) - 1] if s["issue"] else ""     # the issue number sets the month
-    return s
-
-
 # ----------------------------------------------------------------------------
 # Word helpers
 # ----------------------------------------------------------------------------
@@ -287,10 +192,72 @@ def _q(path):
     return "'%s'" % str(path).replace("'", "''")
 
 
+# ---- document engine -------------------------------------------------------------------------------
+# Page counts, PDFs and .doc conversion come from Microsoft Word when it is installed (Windows).  On a
+# server without Word (a Linux container in the cloud) LibreOffice does the same jobs.
+# PAPERDESK_ENGINE=word|libreoffice forces one; PAPERDESK_SOFFICE points at soffice.
+_SOFFICE_PATHS = [r"C:\Program Files\LibreOffice\program\soffice.exe", r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+                  "/usr/bin/soffice", "/usr/bin/libreoffice", "/opt/libreoffice/program/soffice"]
+SOFFICE = os.environ.get("PAPERDESK_SOFFICE") or shutil.which("soffice") or shutil.which("libreoffice") \
+    or next((p for p in _SOFFICE_PATHS if Path(p).exists()), "")
+
+
+def engine():
+    """'word', 'libreoffice' or '' (nothing to count pages and make PDFs with)."""
+    pref = os.environ.get("PAPERDESK_ENGINE", "").lower()
+    word = PS_PAGES.exists() and shutil.which("powershell") is not None and _word_installed()
+    if pref == "libreoffice":
+        return "libreoffice" if SOFFICE else ""
+    if word and pref != "libreoffice":
+        return "word"
+    return "libreoffice" if SOFFICE else ""
+
+
+def _lo_convert(src, fmt, outdir):
+    """Convert one file with LibreOffice; returns the output path or None.  Uses its own profile folder
+    so it never fights a LibreOffice the user has open."""
+    profile = (DATA / "lo_profile").resolve()
+    profile.mkdir(parents=True, exist_ok=True)
+    cmd = [SOFFICE, "-env:UserInstallation=" + profile.as_uri(), "--headless", "--norestore", "--nolockcheck",
+           "--convert-to", fmt, "--outdir", str(outdir), str(src)]
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    except (OSError, subprocess.SubprocessError) as exc:
+        log.error("LibreOffice failed on %s: %s", Path(src).name, exc)
+        return None
+    out = Path(outdir) / (Path(src).stem + "." + fmt.split(":")[0])
+    if not out.exists():
+        log.warning("LibreOffice made nothing from %s: %s", Path(src).name, (res.stderr or res.stdout).strip()[:300])
+        return None
+    return out
+
+
+def _lo_pages(paths, pdf):
+    import tempfile
+    import pymupdf
+    counts = {}
+    for p in paths:
+        p = Path(p)
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d) / ("doc" + p.suffix)                # a short plain name: safe for every tool
+            shutil.copyfile(p, tmp)
+            out = _lo_convert(tmp, "pdf", d)
+            if not out:
+                continue
+            with pymupdf.open(out) as doc:
+                counts[p.resolve()] = doc.page_count
+            if pdf:
+                shutil.copyfile(out, p.with_suffix(".pdf"))
+    return counts
+
+
 def word_pages(paths, pdf=False):
     """{path: pages}; also writes a .pdf next to each file when pdf=True."""
     if not paths:
         return {}
+    if engine() == "libreoffice":
+        with WORD_LOCK:
+            return _lo_pages(paths, pdf)
     extra = "-Paths %s%s" % (",".join(_q(p) for p in paths), " -Pdf" if pdf else "")
     with WORD_LOCK:
         out = _ps(PS_PAGES, extra)
@@ -319,6 +286,15 @@ ijarcce_format.PDF_PROVIDER = _pdf_for
 
 
 def word_convert(src, dst):
+    if engine() == "libreoffice":
+        import tempfile
+        with WORD_LOCK, tempfile.TemporaryDirectory() as d:
+            tmp = Path(d) / ("in" + Path(src).suffix)
+            shutil.copyfile(src, tmp)
+            out = _lo_convert(tmp, "docx:MS Word 2007 XML", d)
+            if out:
+                shutil.copyfile(out, dst)
+            return bool(out) and Path(dst).exists()
     with WORD_LOCK:
         out = _ps(PS_CONVERT, "-InFile %s -OutFile %s" % (_q(src), _q(dst)))
     return "OK" in out and Path(dst).exists()
@@ -328,10 +304,6 @@ def word_convert(src, dst):
 # the pipeline: format -> count pages -> chain DOIs / page numbers -> re-format
 # ----------------------------------------------------------------------------
 
-def auto_doi(s, paper_no):
-    return journal_auto_doi(s["journal"], s["year"], s["volume"], s["issue"], paper_no)
-
-
 def targets(b):
     s = b["settings"]
     running = int(s["first_page"])
@@ -339,7 +311,8 @@ def targets(b):
     out = {}
     for i, p in enumerate(b["papers"]):
         no = first + i
-        doi = p.get("doi_manual") or auto_doi(s, no)
+        # "Without DOI": no DOI anywhere, neither in the paper nor on the certificates
+        doi = "" if s.get("mode") == "without" else (p.get("doi_manual") or auto_doi(s, no))
         start = p.get("start_manual") or running
         out[p["id"]] = {"paper_no": no, "doi": doi, "start": start}
         if p["status"] == "done" and p.get("pages"):
@@ -386,20 +359,11 @@ def format_one(bid, p, t):
                 if not word_convert(orig, src):
                     raise RuntimeError("Word could not open this file. Open it in Word and save it as .docx.")
         meta = make_meta(s["volume"], s["issue"], s["month"], s["year"], doi=t["doi"],
-                         start_page=t["start"], journal=s["journal"])
+                         start_page=t["start"], journal=s["journal"], no_doi=not t["doi"])
         out = d / "formatted.docx"
         fm, _ = format_paper(src, out, meta, journal=s["journal"], report_path=d / "report.txt")
-        flags, shown = [], {}
-        for el, msg in fm.flags:
-            snippet = " ".join(ptext(el).split())[:70] if el is not None else ""
-            shown[msg] = shown.get(msg, 0) + 1
-            total = fm.repeat_counts.get(msg, 1)
-            flags.append({"message": msg, "near": snippet,
-                          "more": total - 3 if total > 3 and shown[msg] == 3 else 0})
-        c = fm.counts
-        found = {"Sections": c.get("h1", 0), "Sub-headings": c.get("h2", 0) + c.get("h3", 0),
-                 "Figures": c.get("figure", 0), "Tables": c.get("table", 0),
-                 "Equations": c.get("equation", 0), "References": getattr(fm, "ref_count", 0)}
+        info = describe(fm)
+        flags, found = info["flags"], info["found"]
         for stale in (d / "formatted.pdf", d / "preview"):
             if stale.is_dir():
                 shutil.rmtree(stale, ignore_errors=True)
@@ -427,6 +391,26 @@ def cert_snapshot(b, p, t):
     cd = p.get("cert_data") or {}
     return json.dumps([s["journal"], s["volume"], s["issue"], s["year"], t["doi"], t["paper_no"],
                        cd.get("title"), cd.get("authors")], sort_keys=True, ensure_ascii=False)
+
+
+def strip_fixed_doi(path):
+    """Remove a DOI printed as fixed text on a certificate (IMRJR's template carries the journal's own
+    "DOI: 10.17148/IMRJR"), for issues made without DOIs."""
+    import zipfile
+    pat = re.compile(r"(<w:t(?: [^>]*)?>)\s*DOI\s*:?\s*10\.\d{4,9}/[^<]*(</w:t>)")
+    with zipfile.ZipFile(path) as z:
+        items = [(i, z.read(i.filename)) for i in z.infolist()]
+    changed = False
+    for n, (info, data) in enumerate(items):
+        if info.filename.startswith("word/") and info.filename.endswith(".xml") and b"DOI" in data:
+            new = pat.sub(r"\1\2", data.decode("utf8")).encode("utf8")
+            if new != data:
+                items[n] = (info, new)
+                changed = True
+    if changed:
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+            for info, data in items:
+                z.writestr(info, data)
 
 
 def certificate_fit_levels(key, cd, doi, s):
@@ -478,7 +462,10 @@ def make_certs_one(bid, pid, t):
             shutil.rmtree(d)                                  # our own folder: certificates of an earlier run
         d.mkdir(parents=True)
         req = {"journal": CERT_KEYS[s["journal"]], "title": cd.get("title", ""), "authors": cd["authors"],
-               "doi": t["doi"], "outDir": str(d)}
+               "doi": t["doi"], "outDir": str(d),
+               # used by the certificate maker when there is no DOI
+               "volume": str(int(s["volume"])), "issue": str(int(s["issue"])), "year": str(s["year"]),
+               "fileNumber": "%02d" % int(t["paper_no"])}
         # measure each certificate's text with the real fonts so the Volume and DOI lines always stay
         # inside the box: long titles and designations are set smaller, only as much as needed
         too_long = []
@@ -494,6 +481,9 @@ def make_certs_one(bid, pid, t):
         out = json.loads(lines[-1]) if lines else {}
         if res.returncode != 0 or out.get("error"):
             raise RuntimeError((out.get("error") or res.stderr[-300:] or "The certificate maker failed.")[:400])
+        if not t["doi"]:
+            for f in out["files"]:
+                strip_fixed_doi(d / f["file"])               # "Without DOI": not even the journal's own DOI
         word_pages([d / f["file"] for f in out["files"]], pdf=True)
         entries = [{"stem": f["file"][:-5], "kind": f["kind"], "index": f["index"],
                     "pdf": (d / (f["file"][:-5] + ".pdf")).exists()} for f in out["files"]]
@@ -503,7 +493,7 @@ def make_certs_one(bid, pid, t):
         gen = [w for w in out.get("warnings", [])
                if not (w.startswith("Check the DOI:") and decoded == expected)]   # we know the issue: no doubt
         warnings = list(cd.get("warnings") or []) + gen + too_long
-        if decoded != expected:
+        if t["doi"] and decoded != expected:
             warnings.append("The DOI on the certificates reads as volume %s, issue %s, %s, but this issue is "
                             "volume %s, issue %s, %s. Check the DOI." % (decoded + expected))
         if any(not e["pdf"] for e in entries):
@@ -604,7 +594,7 @@ def view(b):
 
 
 def health():
-    return {"word": PS_PAGES.exists() and shutil.which("powershell") is not None and _word_installed(),
+    return {"word": bool(engine()), "engine": engine() or "none",
             "node": bool(NODE) and CERT_CLI.exists(),
             "templates": {k: Path(v).exists() for k, v in ijarcce_format.JOURNAL_TEMPLATES.items()},
             "preview": _has_pymupdf()}
@@ -640,7 +630,7 @@ def guard():
     origin = (request.headers.get("Origin") or "").rstrip("/")
     if request.method == "OPTIONS":
         return ("", 204)
-    protected = request.path.startswith(("/api/", "/files/", "/preview/"))
+    protected = request.path.startswith(("/api/", "/files/", "/preview/", "/certpreview/"))
     if origin and protected and request.method != "GET":
         same = origin.split("://", 1)[-1] == request.host
         if not same and origin not in ALLOWED_ORIGINS:
@@ -719,10 +709,15 @@ def api_parse_doi():
 
 @app.get("/api/init")
 def api_init():
+    # Every session starts empty: whatever an earlier session left is deleted.  `keep` is the issue of
+    # this browser tab, so reloading the page does not lose the work in progress.
+    keep = request.args.get("keep", "")
+    for old in list_batches():
+        if old["id"] != keep:
+            shutil.rmtree(BATCHES / old["id"], ignore_errors=True)
     batches = list_batches()
     if not batches:
-        b = new_batch()
-        batches = [summary_of(b)]
+        batches = [summary_of(new_batch())]
     return jsonify(batches=batches, current=batches[0]["id"])
 
 
@@ -776,7 +771,6 @@ def api_settings(bid):
                     p["rev"] = p.get("rev", 0) + 1
 
     b = mutate(bid, fn)
-    DEFAULTS_FILE.write_text(json.dumps({**s, "first_doi": "", "first_paper": "1"}), encoding="utf-8")
     submit(bid)
     resp = view(b)
     resp["batches"] = list_batches()
@@ -964,6 +958,47 @@ def api_certs_redo(bid, pid):
     b = mutate(bid, fn)
     submit(bid)
     return jsonify(view(b))
+
+
+@app.post("/api/batches/<bid>/papers/<pid>/certpreview")
+def api_cert_preview(bid, pid):
+    """Page pictures of the 'all certificates in one file' PDF."""
+    try:
+        import pymupdf
+    except ImportError:
+        return jsonify(error="Previews need the pymupdf package (pip install pymupdf)."), 501
+    p = get_paper(load(bid), pid)
+    entry = next((e for e in (p.get("certs") or {}).get("files", []) if e["kind"] == "all"), None)
+    if entry is None:
+        return jsonify(error="The certificates are not ready."), 400
+    d = cert_dir(bid, pid)
+    pdf = d / (entry["stem"] + ".pdf")
+    docx = d / (entry["stem"] + ".docx")
+    source = pdf if pdf.exists() else docx
+    if not source.exists():
+        return jsonify(error="The certificates are not ready."), 400
+    version = int(source.stat().st_mtime)
+    pdir = d.parent / "certpreview"
+    stamp = pdir / ("v%d" % version)
+    if not stamp.exists():
+        data = pdf.read_bytes() if pdf.exists() else _pdf_for(docx)   # short temporary path: long names are safe
+        if not data:
+            return jsonify(error="Word could not make a PDF of the certificates."), 500
+        shutil.rmtree(pdir, ignore_errors=True)
+        pdir.mkdir(parents=True)
+        with pymupdf.open(stream=data, filetype="pdf") as doc:
+            for i, page in enumerate(doc, 1):
+                page.get_pixmap(dpi=90).save(str(pdir / ("%d.png" % i)))
+        stamp.touch()
+    return jsonify(pages=len(list(pdir.glob("*.png"))), version=version)
+
+
+@app.get("/certpreview/<bid>/<pid>/<int:n>.png")
+def api_cert_preview_page(bid, pid, n):
+    f = bdir(bid) / "papers" / pid / "certpreview" / ("%d.png" % n)
+    if not valid_id(pid) or not f.exists():
+        abort(404)
+    return send_file(f, mimetype="image/png", max_age=3600)
 
 
 @app.get("/files/<bid>/<pid>/bundle")

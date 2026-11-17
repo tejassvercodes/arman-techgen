@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Arman - Workspace</title>
+<meta name="description" content="Format student papers to the journal layout and make the authors' certificates in one step.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2032%2032%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22af%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236366f1%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23a855f7%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%229%22%20fill%3D%22url(%23af)%22%2F%3E%3Cpath%20fill%3D%22%23fff%22%20fill-rule%3D%22evenodd%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.2%22%20stroke-linejoin%3D%22round%22%20d%3D%22M16%206.4L25.7%2025.6H21.5L19.9%2022.3H12.1L10.5%2025.6H6.3ZM16%2013.7L13.9%2018.3H18.1Z%22%2F%3E%3C%2Fsvg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous">
+<script src="https://unpkg.com/pizzip@3.2.0/dist/pizzip.js" integrity="sha384-EKMdeygnsgFUPocowqWjGXhnzFAiDXk3KuOx8g8lsB5/JNEQYTWaADHxmioDiFU8" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/docx-preview@0.4.0/dist/docx-preview.min.js" integrity="sha384-UkwbeBm1NknJfLd5UU4RI1j7PidBeZE3tIiKY1k+n7RQ+kEJ0dkTC0u53xTtRC9r" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";</script>
+<script src="app/certs.js"></script>
+<script src="app/localapi.js"></script>
+<style>
+  /* Same look as the certificate generator (certificate-generator/styles.css). */
+  :root {
+    --bg-app: #0a0a0c; --bg-card: #121216; --bg-input: #1a1a22; --border: #252530;
+    --text: #e4e4e7; --text-muted: #8b8b9e; --accent: #6366f1; --accent-hover: #4f46e5; --accent-light: #818cf8;
+    --success: #10b981; --danger: #ef4444; --warn: #f59e0b;
+    --font: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-padding-top: 12px; }
+  body { background: var(--bg-app); color: var(--text); font-family: var(--font); font-size: 14.5px; line-height: 1.5;
+         min-height: 100vh; padding: 0.75rem 1.25rem 2rem; display: flex; justify-content: center; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent-light); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  .container { width: 100%; max-width: 1680px; display: flex; flex-direction: column; gap: 0.75rem; }
+
+  .header { display: flex; align-items: center; gap: 0.75rem 1rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 0.6rem; }
+  .logo { display: flex; align-items: center; gap: 0.6rem; margin-right: auto; }
+  .logo svg { width: 2rem; height: 2rem; flex: none; }
+  .header h1 { font-size: 1.2rem; font-weight: 600; }
+  .header .ver { color: var(--text-muted); font-size: 0.75rem; }
+  .pill { font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 99px; border: 1px solid var(--border); color: var(--text-muted); white-space: nowrap; }
+  .pill.ok { color: var(--success); border-color: rgba(16,185,129,.35); background: rgba(16,185,129,.08); }
+  .pill.bad { color: var(--danger); border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.08); }
+  .issuebar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; min-width: 0; }
+  .issuebar select { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem 0.7rem; max-width: 100%; min-width: 0; }
+
+  .grid-layout { display: grid; grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.6fr); gap: 1.25rem; align-items: start; }
+  @media (max-width: 980px) { .grid-layout { grid-template-columns: 1fr; } }
+  .control-panel, .work-panel { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+  .control-panel { position: sticky; top: 0.75rem; }
+  @media (max-width: 980px) { .control-panel { position: static; } }
+
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem;
+          display: flex; flex-direction: column; gap: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,.25); min-width: 0; }
+  .card-header { display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); }
+  .card-header i { color: var(--accent-light); font-size: 1.1rem; }
+  .card-header h2 { font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text); }
+
+  .template-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
+  @media (max-width: 1280px) { .template-grid { grid-template-columns: repeat(2, 1fr); } }
+  .template-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem;
+                   padding: 0.9rem 0.4rem; border: 2px solid var(--border); border-radius: 8px; background: rgba(255,255,255,.01);
+                   color: var(--text); font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: border-color .15s, background .15s; }
+  .template-card img { width: 44px; height: 44px; object-fit: contain; border-radius: 6px; background: #fff; padding: 3px; }
+  .template-card:hover { border-color: var(--accent-light); }
+  .template-card.active { border-color: var(--accent); background: rgba(99,102,241,.12); }
+  .file-name { color: var(--text-muted); font-size: 0.8rem; }
+
+  label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem; }
+  input[type=text], input[type=number] { width: 100%; padding: 0.6rem 0.75rem; background: var(--bg-input); border: 1px solid var(--border);
+                                           border-radius: 8px; }
+  input:focus { border-color: var(--accent); outline: none; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .fields .wide { grid-column: 1 / -1; }
+  .hint, .note { font-size: 0.78rem; color: var(--text-muted); }
+  .mode-toggle { display: flex; background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 3px; gap: 3px; }
+  .mode-btn { flex: 1; padding: 0.45rem 0.6rem; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); font-weight: 600; cursor: pointer; }
+  .mode-btn:hover { color: var(--text); }
+  .mode-btn.active { background: var(--accent); color: #fff; }
+  .derived { font-size: 0.82rem; padding: 0.55rem 0.7rem; border-radius: 8px; background: rgba(99,102,241,.1); border: 1px solid rgba(99,102,241,.25); }
+  .derived.bad { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.35); color: #fca5a5; }
+  .derived.warn { background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.35); color: #fcd34d; }
+  .derived.empty-note { background: transparent; border-color: var(--border); color: var(--text-muted); }
+
+  .btn { display: inline-flex; align-items: center; gap: 0.45rem; background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+         padding: 0.6rem 1.1rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: background .15s; }
+  .btn:hover { background: var(--accent-hover); }
+  .btn.ghost, .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn.ghost:hover, .btn-secondary:hover { border-color: var(--accent-light); background: transparent; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.small { padding: 0.4rem 0.8rem; font-size: 0.82rem; }
+
+  .drop { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; border: 2px dashed var(--border); border-radius: 10px;
+          padding: 1.6rem 1rem; text-align: center; cursor: pointer; background: rgba(255,255,255,.01); transition: border-color .15s, background .15s; }
+  .drop i { font-size: 1.6rem; color: var(--accent-light); }
+  .drop strong { font-size: 1rem; color: var(--text); font-weight: 600; }
+  .drop span { color: var(--text-muted); font-size: 0.8rem; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: rgba(99,102,241,.08); }
+  .drop.off { opacity: .5; cursor: not-allowed; }
+  .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
+  .bar .stats { color: var(--text-muted); font-size: 0.85rem; margin-right: auto; }
+  .bar .stats b { color: var(--text); }
+  #list { display: flex; flex-direction: column; gap: 0.75rem; }
+  .paper { padding: 1rem 1.1rem; gap: 0; background: var(--bg-input); box-shadow: none; }
+  .ptop { display: flex; gap: 0.75rem; align-items: flex-start; }
+  .num { flex: none; min-width: 3rem; text-align: center; background: rgba(99,102,241,.14); color: var(--accent-light); border-radius: 8px;
+         padding: 0.25rem 0.4rem; font-weight: 700; font-size: 0.8rem; }
+  .pmain { flex: 1; min-width: 0; }
+  .ptitle { font-weight: 600; overflow-wrap: anywhere; }
+  .pfile { font-size: 0.78rem; color: var(--text-muted); overflow-wrap: anywhere; }
+  .chip { flex: none; font-size: 0.74rem; font-weight: 600; padding: 0.2rem 0.65rem; border-radius: 99px; white-space: nowrap; border: 1px solid transparent; }
+  .chip.ok { color: var(--success); background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); }
+  .chip.warn { color: #fcd34d; background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.3); }
+  .chip.err { color: #fca5a5; background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.3); }
+  .chip.work { color: var(--accent-light); background: rgba(99,102,241,.12); border-color: rgba(99,102,241,.3); }
+  .prow { display: flex; flex-wrap: wrap; gap: 0.6rem 0.9rem; align-items: flex-end; margin-top: 0.75rem; }
+  .prow .fld { min-width: 0; }
+  .prow .doi { flex: 1 1 300px; }
+  .prow .pg { width: 6.5rem; }
+  .prow input { background: var(--bg-card); }
+  .doi-wrap { display: flex; }
+  .doi-wrap span { background: var(--bg-card); border: 1px solid var(--border); border-right: 0; border-radius: 8px 0 0 8px; padding: 0.6rem 0.6rem;
+                   font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
+  .doi-wrap input { border-radius: 0 8px 8px 0; }
+  .range { font-size: 0.82rem; color: var(--text-muted); padding-bottom: 0.6rem; }
+  .range b { color: var(--text); }
+  .auto { font-weight: 400; }
+  .acts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; align-items: center; }
+  .acts .sp { flex: 1; }
+  .linkbtn { background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 0.3rem 0.7rem;
+             font-size: 0.8rem; cursor: pointer; text-decoration: none; display: inline-block; transition: border-color .15s, color .15s; }
+  .linkbtn:hover { border-color: var(--accent-light); color: var(--accent-light); }
+  .linkbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .linkbtn.primary:hover { background: var(--accent-hover); color: #fff; }
+  .linkbtn:disabled { opacity: .4; cursor: not-allowed; }
+  .detail, .certs { margin-top: 0.85rem; border-top: 1px solid var(--border); padding-top: 0.85rem; }
+  .detail h3 { margin: 0.75rem 0 0.3rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+  .detail ul { padding-left: 1.2rem; }
+  .flags { list-style: none; padding: 0; }
+  .flag { list-style: none; margin: 0.35rem 0 0 -1.2rem; padding: 0.45rem 0.65rem; border-radius: 6px; background: rgba(245,158,11,.08);
+          border: 1px solid rgba(245,158,11,.25); color: #fcd34d; font-size: 0.84rem; }
+  .flags .flag, .mflags .flag { margin-left: 0; }
+  .flag small { display: block; opacity: .8; }
+  .good { background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.25); color: var(--success); padding: 0.45rem 0.65rem; border-radius: 6px; font-size: 0.84rem; }
+  .found { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; color: var(--text-muted); font-size: 0.84rem; }
+  .found b { color: var(--text); }
+  .err-text { color: #fca5a5; margin-top: 0.5rem; font-size: 0.85rem; }
+  .empty { text-align: center; color: var(--text-muted); padding: 1.6rem 0.5rem; }
+  .tabs { display: flex; gap: 0.4rem; margin: 0.9rem 0 1rem; border-bottom: 1px solid var(--border); }
+  .tab { background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--text-muted); font: inherit; font-weight: 600;
+         font-size: 0.95rem; padding: 0.6rem 1.1rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: -1px; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--primary, #6366f1); }
+  .tab:focus-visible { outline: 2px solid var(--primary, #6366f1); outline-offset: -2px; border-radius: 6px; }
+  .tab .count { font-size: 0.72rem; padding: 0.05rem 0.45rem; border-radius: 99px; border: 1px solid var(--border); color: var(--text-muted); }
+  #viewCerts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+  #viewCerts[hidden] { display: none; }
+  @media (max-width: 980px) { #viewCerts { grid-template-columns: 1fr; } }
+  .cprev { position: sticky; top: 0.75rem; max-height: calc(100vh - 1.5rem); display: flex; flex-direction: column; }
+  @media (max-width: 980px) { .cprev { position: static; max-height: none; } }
+  .cprev .cptitle { margin: 0; font-size: 0.85rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cprev .cppages { overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; min-height: 8rem; padding-right: 0.25rem; }
+  .cprev .cppages img { width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid var(--border); background: #fff; }
+  .cprev .cpnote { text-align: center; color: var(--text-muted); padding: 2.5rem 0.5rem; }
+  .certpaper { cursor: pointer; border: 1px solid transparent; }
+  .certpaper.sel { border-color: var(--primary, #6366f1); }
+  .download-options { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .download-option-btn { flex: 1 1 11rem; min-width: 0; display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0.9rem; border: 2px solid var(--border);
+    border-radius: 8px; background-color: rgba(255, 255, 255, 0.01); color: var(--text); font-family: inherit; text-align: left; cursor: pointer; transition: all 0.2s ease; }
+  .download-option-btn i { flex-shrink: 0; font-size: 1.2rem; width: 1.5rem; text-align: center; color: #a5b4fc; }
+  .download-option-text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+  .download-option-title { font-size: 0.85rem; font-weight: 600; }
+  .download-option-subtitle { font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; }
+  .download-option-btn:hover:not(:disabled) { border-color: var(--primary, #6366f1); background-color: rgba(99, 102, 241, 0.06); }
+  .download-option-btn:focus-visible { outline: 2px solid var(--primary, #6366f1); outline-offset: 2px; }
+  .download-option-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .preview-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+  .preview-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  .preview-table th, .preview-table td { padding: 0.5rem 0.65rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+  .preview-table thead th { background-color: var(--bg-card); color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.68rem; }
+  .preview-table tbody tr:last-child td { border-bottom: none; }
+  .preview-table tbody tr:hover { background-color: rgba(255, 255, 255, 0.02); }
+  .preview-table td.cell-empty { color: var(--danger); font-style: italic; }
+  .preview-pub-info { display: block; margin-top: 0.45rem; font-size: 0.75rem; font-family: monospace; color: #a5b4fc; }
+  .parse-warning { font-size: 0.8rem; color: #fcd34d; margin-top: 0.4rem; }
+  .log-card { margin-top: 1.25rem; }
+  .log-card .card-header .sp { margin-left: auto; }
+  .logs { background-color: #050507; border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; height: 150px; overflow-y: auto;
+          font-family: ui-monospace, Consolas, monospace; font-size: 0.75rem; display: flex; flex-direction: column; gap: 0.35rem; }
+  .log-entry { display: flex; gap: 0.5rem; align-items: flex-start; line-height: 1.4; }
+  .log-entry i { margin-top: 0.15rem; flex-shrink: 0; }
+  .log-entry time { color: var(--text-muted); flex-shrink: 0; }
+  .log-entry span { overflow-wrap: anywhere; }
+  .log-entry.system { color: var(--text-muted); }
+  .log-entry.success { color: #34d399; }
+  .log-entry.info { color: #a5b4fc; }
+  .log-entry.error { color: #fca5a5; }
+  .certpaper .certs { border-top: 0; margin-top: 0.6rem; padding-top: 0; }
+  .certhead { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+  .certgrid { display: grid; grid-template-columns: minmax(120px, auto) 1fr; gap: 0.4rem 0.9rem; margin-top: 0.5rem; align-items: center; font-size: 0.85rem; }
+  .certgrid .links { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .certsub { margin: 0.6rem 0 0.15rem; font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+  .certform { margin-top: 0.75rem; padding: 0.8rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; }
+  .certform .row2 { display: grid; grid-template-columns: 1fr 2fr auto; gap: 0.5rem; margin-bottom: 0.5rem; }
+  @media (max-width: 640px) { .certform .row2 { grid-template-columns: 1fr; } .fields { grid-template-columns: 1fr; } }
+
+  dialog { border: 1px solid var(--border); border-radius: 14px; padding: 0; width: min(1100px, 96vw); height: min(88vh, 900px);
+           background: var(--bg-card); color: var(--text); margin: auto; }
+  dialog::backdrop { background: rgba(0,0,0,.65); }
+  .mhead { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); }
+  .mhead h3 { font-size: 0.95rem; margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mbody { display: grid; grid-template-columns: 1fr 300px; height: calc(100% - 53px); }
+  @media (max-width: 800px) { .mbody { grid-template-columns: 1fr; } .mflags { display: none; } }
+  .mpages { overflow: auto; padding: 0.9rem; background: var(--bg-app); text-align: center; }
+  .mpages img { max-width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,.5); margin-bottom: 0.9rem; background: #fff; }
+  .mflags { overflow: auto; padding: 0.9rem; border-left: 1px solid var(--border); font-size: 0.85rem; }
+  .mflags h3 { margin-bottom: 0.5rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+  .loading { padding: 2rem; color: var(--text-muted); }
+  #toast { position: fixed; left: 50%; bottom: 1.25rem; transform: translateX(-50%); z-index: 20; max-width: min(560px, 92vw); display: flex; flex-direction: column; gap: 0.5rem; }
+  .toast { background: var(--bg-input); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 0.6rem 0.9rem; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
+  .toast.bad { border-left-color: var(--danger); color: #fca5a5; }
+  input.invalid, input.invalid:focus { border-color: var(--danger) !important; box-shadow: 0 0 0 2px rgba(239,68,68,.25); color: #fca5a5; }
+  .container { gap: 0.45rem; }
+  .header { padding-bottom: 0.4rem; }
+  .tabs { margin: 0 0 0.55rem; }
+  .tab { padding: 0.4rem 1rem; }
+  .card { padding: 0.95rem 1.05rem; }
+  .drop { padding-top: 1.05rem; padding-bottom: 1.05rem; }
+  .logs { height: 110px; }
+  .log-card { margin-top: 0.8rem; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .cprev { max-height: none; }
+  .cprev .cppages { display: block; width: 100%; aspect-ratio: var(--ar, 1.414); max-height: calc(100vh - 8.5rem); min-height: 0; padding: 0; gap: 0;
+    overflow-y: auto; overflow-x: hidden; scroll-snap-type: y mandatory; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: 8px; background: #050507; }
+  .cprev .cppage { height: 100%; width: 100%; display: flex; align-items: center; justify-content: center; scroll-snap-align: start; scroll-snap-stop: always; overflow: hidden; }
+  .cprev .cppages .cppage img { width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; border: 0; border-radius: 0; display: block; }
+  .cprev .cpnote { height: 100%; display: flex; align-items: center; justify-content: center; padding: 0.5rem; }
+  .barpage { width: 6.5rem; padding: 0.35rem 0.5rem; }
+  .linkbtn { background: rgba(255,255,255,.06); border-color: #3b3b4a; font-weight: 500; box-shadow: 0 1px 0 rgba(255,255,255,.04) inset; }
+  .linkbtn:hover:not(:disabled) { background: rgba(99,102,241,.14); border-color: var(--accent); color: #fff; }
+  .fields { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .fields > div { grid-column: span 2; }
+  .fields > div.half { grid-column: span 3; }
+  .pagebox { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.8rem; font-weight: 600; color: var(--text); margin: 0; white-space: nowrap; }
+  .barpage { width: 3.2rem; padding: 0.15rem 0.2rem; font-size: 0.8rem; text-align: center; }
+  .happy { font-size: 1.05rem; font-weight: 800; letter-spacing: 0.26em; white-space: nowrap; color: transparent;
+    background: linear-gradient(100deg, #b8860b 0%, #d4a017 30%, #ffd700 42%, #fff6b0 50%, #ffd700 58%, #d4a017 70%, #b8860b 100%); background-size: 250% 100%;
+    -webkit-background-clip: text; background-clip: text; animation: happyShine 4s linear infinite;
+    filter: drop-shadow(0 0 6px rgba(255, 200, 40, .35)); }
+  @keyframes happyShine { from { background-position: 125% 0; } to { background-position: -125% 0; } }
+  @media (prefers-reduced-motion: reduce) { .happy { animation: none; color: #ffd700; background: none; } }
+  .pgs { max-width: 9rem; }
+  .pgs input { width: 5rem; }
+  .pgs.unsure input { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,.2); }
+  .pgnote { margin: 0.35rem 0 0; font-size: 0.78rem; color: #fcd34d; }
+  .cprev .cppages { position: relative; }
+  .cprev .cppages .pgbox { scroll-snap-align: start; scroll-snap-stop: always; }
+  .mpages .pgbox { background: transparent; }
+</style>
+</head>
+<body>
+<noscript><p style="padding:1rem;color:#fcd34d">This page needs JavaScript. Please turn it on and reload.</p></noscript>
+<p id="compat" role="alert" hidden style="margin:0;padding:.7rem 1rem;background:#7f1d1d;color:#fff;text-align:center">This browser is too old for this page. Please open it in a current Chrome, Edge, Firefox or Safari.</p>
+<div class="container">
+  <header class="header">
+    <div class="logo">
+      <svg viewBox="0 0 32 32" role="img" aria-label="Arman" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="ah" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#ah)"/><path fill="#fff" fill-rule="evenodd" stroke="#fff" stroke-width="1.2" stroke-linejoin="round" d="M16 6.4L25.7 25.6H21.5L19.9 22.3H12.1L10.5 25.6H6.3ZM16 13.7L13.9 18.3H18.1Z"/></svg>
+      <h1>Arman - Workspace</h1>
+      <span class="ver" id="appVersion"></span>
+    </div>
+    <span class="happy" aria-hidden="true">HAPPY WORKSPACE</span>
+    <div class="issuebar" hidden>
+      <select id="batchSel" aria-label="Issue"></select>
+      <button class="btn ghost small" id="newBatch" type="button"><i class="fa-solid fa-plus"></i> New issue</button>
+      <button class="btn ghost small" id="delBatch" type="button"><i class="fa-solid fa-trash"></i> Delete issue</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab active" id="tabPapers" type="button" role="tab" aria-selected="true" aria-controls="viewPapers"><i class="fa-solid fa-file-lines"></i> Papers <span class="count" id="cntPapers">0</span></button>
+    <button class="tab" id="tabCerts" type="button" role="tab" aria-selected="false" aria-controls="viewCerts"><i class="fa-solid fa-award"></i> Certificates <span class="count" id="cntCerts">0</span></button>
+  </nav>
+
+  <main class="grid-layout" id="viewPapers" role="tabpanel" aria-labelledby="tabPapers">
+    <form class="control-panel" id="settings" autocomplete="off">
+      <div class="card">
+        <div class="card-header"><i class="fa-solid fa-book-open"></i><h2>1. Choose Journal</h2></div>
+        <div class="template-grid" id="journalGrid"></div>
+        <input type="hidden" id="s_journal" name="journal" value="ijarcce">
+      </div>
+
+      <div class="card">
+        <div class="card-header"><i class="fa-solid fa-link"></i><h2>2. Issue Details</h2></div>
+        <div class="mode-toggle" id="modeToggle" role="group" aria-label="How to enter the issue details">
+          <button type="button" class="mode-btn active" data-mode="with">With DOI</button>
+          <button type="button" class="mode-btn" data-mode="without">Without DOI</button>
+        </div>
+        <div id="doiFields">
+          <input type="text" id="s_first_doi" name="first_doi" aria-label="DOI of the first paper in this issue" placeholder="DOI, e.g. 10.17148/IJARCCE.2026.15817">
+        </div>
+        <div id="manualFields" class="fields" hidden>
+          <div><label for="s_volume">Volume</label><input type="number" min="1" id="s_volume" name="volume" placeholder="15"></div>
+          <div><label for="s_issue">Issue</label><input type="number" min="1" max="12" id="s_issue" name="issue" placeholder="8"></div>
+          <div><label for="s_year">Year</label><input type="number" min="2000" max="2100" id="s_year" name="year" placeholder="2026"></div>
+          <div class="half"><label for="s_first_paper">File no.</label><input type="number" min="1" id="s_first_paper" name="first_paper" placeholder="17"></div>
+        </div>
+        <div class="derived empty-note" id="derived" aria-live="polite" hidden></div>
+        <div id="pageWrap" class="half"><label for="s_first_page">Page no.</label><input type="number" min="1" id="s_first_page" name="first_page" placeholder="1"></div>
+      </div>
+    </form>
+
+    <section class="work-panel">
+      <div class="card">
+        <div class="card-header"><i class="fa-solid fa-cloud-arrow-up"></i><h2>3. Upload Manuscript</h2></div>
+        <label class="drop" id="drop" for="files" tabindex="0">
+          <i class="fa-solid fa-file-word"></i>
+          <strong>Drop the students' files here, or click to choose</strong>
+          <span id="dropHint">Word files (.docx). You can add several at once.</span>
+          <input type="file" id="files" accept=".docx" multiple>
+        </label>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><i class="fa-solid fa-layer-group"></i><h2>4. Formatted Papers</h2></div>
+        <div class="bar" id="bar" hidden>
+          <span class="stats" id="stats"></span>
+          <label class="pagebox" for="barPage" title="Change the first page number; the papers are renumbered"><i class="fa-solid fa-pen"></i> Edit page#
+            <input type="text" inputmode="numeric" maxlength="4" id="barPage" class="barpage" aria-label="First page number of the issue"></label>
+          <button class="btn ghost small" id="redoAll" type="button"><i class="fa-solid fa-rotate"></i> Re-format all</button>
+        </div>
+        <div id="list"></div>
+        <div class="empty" id="empty">No papers in this issue yet.</div>
+      </div>
+    </section>
+  </main>
+
+  <main id="viewCerts" role="tabpanel" aria-labelledby="tabCerts" hidden>
+    <div class="card">
+      <div class="card-header"><i class="fa-solid fa-award"></i><h2>Certificates</h2><span style="margin-left:auto"></span>
+        <button class="btn small dl-all" type="button" title="Every paper (Word + PDF) and every certificate (Word + PDF, one per author)"><i class="fa-solid fa-download"></i> Download all</button></div>
+      <div id="certList"></div>
+      <div class="empty" id="certEmpty">No certificates yet. Upload papers in the Papers tab first.</div>
+    </div>
+    <aside class="card cprev" aria-label="Live preview of the certificates">
+      <div class="card-header"><i class="fa-solid fa-eye"></i><h2>Live Preview</h2></div>
+      <p class="cptitle" id="cpTitle">All certificates in one file</p>
+      <div class="cppages" id="cpPages" aria-live="polite"><div class="cpnote">Nothing to preview yet.</div></div>
+    </aside>
+  </main>
+
+  <div class="card log-card">
+    <div class="card-header"><i class="fa-solid fa-terminal"></i><h2>System Logs</h2><span class="sp"></span>
+      <button class="linkbtn" id="logClear" type="button">Clear</button></div>
+    <div class="logs" id="logs" role="log" aria-live="off" aria-label="System logs"></div>
+  </div>
+</div>
+
+<dialog id="modal">
+  <div class="mhead"><h3 id="mTitle"></h3><button class="linkbtn" id="mClose" type="button">Close</button></div>
+  <div class="mbody">
+    <div class="mpages" id="mPages"></div>
+    <div class="mflags" id="mFlags"></div>
+  </div>
+</dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let PREFIXES = {};
+const prefixNow = () => PREFIXES[data.settings.journal] || "";
+let batches = [], cur = null, data = null, pollTimer = null, lastKey = "", expanded = new Set();
+
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if ((k === "href" || k === "src") && typeof v === "string" && v.startsWith("/")) e.setAttribute(k, link(v));
+    else if (v === true) e.setAttribute(k, "");
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) e.append(kid.nodeType ? kid : document.createTextNode(kid));
+  return e;
+}
+// System Logs (bottom of the page, shown under both tabs); kept only for this session.
+function log(msg, type) {
+  type = type || "system";
+  const icon = { success: "fa-circle-check", error: "fa-circle-exclamation", info: "fa-magnifying-glass" }[type] || "fa-info-circle";
+  const box = $("logs");
+  const atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 30;
+  box.append(h("div", { class: "log-entry " + type }, h("i", { class: "fa-solid " + icon }),
+    h("time", {}, new Date().toLocaleTimeString([], { hour12: false })), h("span", {}, msg)));
+  while (box.children.length > 400) box.firstChild.remove();
+  if (atEnd) box.scrollTop = box.scrollHeight;
+}
+$("logClear").addEventListener("click", () => $("logs").replaceChildren());
+log("Workspace started. Everything stays in this browser tab; nothing is uploaded.");
+// What changed for each paper since the last update from the server.
+let logSeen = null, logBatch = "";
+function logChanges(d) {
+  const now = {};
+  d.papers.forEach(p => {
+    const done = p.status === "done" && p.pages != null, c = p.certs;
+    now[p.id] = { name: p.name, stage: done ? "done" : (p.status === "error" ? "error" : (p.stage || p.status)),
+                  cert: c ? c.status : "", key: done ? p.pages + "/" + p.flags.length : "" };
+  });
+  if (logSeen && logBatch === cur) {
+    d.papers.forEach(p => {
+      const a = logSeen[p.id], b = now[p.id], n = "“" + p.name + "”";
+      if (!a) log("Added " + n + ".", "info");
+      if (!a || a.stage !== b.stage || (b.stage === "done" && a.key !== b.key)) {
+        if (b.stage === "done") log(n + " formatted: " + p.pages + " page" + (p.pages === 1 ? "" : "s") + " (" + p.start + "–" + p.end + "), "
+          + (p.flags.length ? p.flags.length + " item" + (p.flags.length === 1 ? "" : "s") + " to check." : "nothing to check."), "success");
+        else if (b.stage === "error") log(n + ": " + (p.error || "could not be formatted."), "error");
+        else if (b.stage) log(n + ": " + b.stage, "system");
+      }
+      if (b.stage === "done" && (!a || a.cert !== b.cert)) {
+        if (b.cert === "ok") log("Certificates ready for " + n + " (" + p.certs.files.filter(f => f.kind === "single").length + " authors).", "success");
+        else if (b.cert === "error") log("Certificates for " + n + ": " + (p.certs.error || "problem"), "error");
+        else if (a && a.cert === "ok") log("Making the certificates for " + n + " again…", "system");
+      }
+    });
+    Object.keys(logSeen).forEach(id => { if (!now[id]) log("Removed “" + logSeen[id].name + "”.", "info"); });
+  }
+  logSeen = now; logBatch = cur;
+}
+function toast(msg, bad) {
+  log(msg, bad ? "error" : "info");
+  const t = h("div", { class: "toast" + (bad ? " bad" : "") }, msg);
+  $("toast").append(t);
+  setTimeout(() => t.remove(), bad ? 7000 : 3500);
+}
+const link = (path) => LocalApi.link(path);
+const api = (path, opts) => LocalApi.api(path, opts);
+const jsonOpts = (method, obj) => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(obj || {}) });
+const base = () => "/api/batches/" + cur;
+
+/* ---------- issues ---------- */
+function renderBatches() {
+  const sel = $("batchSel");
+  sel.replaceChildren(...batches.map(b => h("option", { value: b.id, selected: b.id === cur }, b.label + (b.count ? " (" + b.count + ")" : ""))));
+}
+async function openBatch(id) {
+  cur = id; lastKey = ""; expanded.clear();
+  try { sessionStorage.setItem("pf_cur", id); } catch (e) {}
+  renderBatches();
+  setData(await api(base()));
+}
+$("batchSel").addEventListener("change", e => openBatch(e.target.value));
+$("newBatch").addEventListener("click", async () => {
+  const r = await api("/api/batches", jsonOpts("POST", {}));
+  batches = r.batches; cur = r.id; renderBatches(); lastKey = ""; setData(r);
+  $("s_volume").focus();
+});
+$("delBatch").addEventListener("click", async () => {
+  if (!confirm("Delete this issue and all its papers? This cannot be undone.")) return;
+  const r = await api(base(), { method: "DELETE" });
+  batches = r.batches;
+  if (!batches.length) { const n = await api("/api/batches", jsonOpts("POST", {})); batches = n.batches; }
+  openBatch(batches[0].id);
+});
+
+/* ---------- settings ---------- */
+const SET_KEYS = ["journal", "first_doi", "volume", "issue", "year", "first_paper", "first_page"];
+let MONTHS = [];
+let setMode = "with";
+function applyMode() {
+  document.querySelectorAll("#modeToggle .mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === setMode));
+  $("doiFields").hidden = setMode !== "with";
+  $("manualFields").hidden = setMode !== "without";
+  if (setMode === "without") $("manualFields").append($("pageWrap")); else $("derived").after($("pageWrap"));
+}
+let parseSeq = 0;
+const doiCache = {};
+// Shows what the details mean and returns true when they are complete and valid.
+async function showDerived() {
+  const box = $("derived"), doiEl = $("s_first_doi");
+  const set = (cls, text) => { box.hidden = !text; box.className = "wide derived " + cls; box.textContent = text; };
+  doiEl.classList.remove("invalid");
+  if (setMode === "with") {
+    const doi = doiEl.value.trim();
+    if (!doi) { ++parseSeq; set("empty-note", ""); return false; }
+    const mine = ++parseSeq;
+    let d = doiCache[doi];
+    if (!d) { try { d = doiCache[doi] = await api("/api/parse-doi?doi=" + encodeURIComponent(doi)); } catch (e) { return false; } }
+    if (mine !== parseSeq) return false;
+    if (d.error) { doiEl.classList.add("invalid"); set("bad", d.error); return false; }
+    if (d.journal && d.journal !== $("s_journal").value) {
+      doiEl.classList.add("invalid");
+      set("bad", "This DOI belongs to " + JOURNALS[d.journal] + ", but " + JOURNALS[$("s_journal").value] + " is chosen. Choose " + JOURNALS[d.journal] + " or correct the DOI.");
+      return false;
+    }
+    set(d.note ? "warn" : "", "Volume " + d.volume + " · Issue " + d.issue + " (" + d.month + ") · " + d.year + " · first paper no. " + parseInt(d.file_number, 10) + "." + (d.note ? " " + d.note : ""));
+    return true;
+  }
+  ++parseSeq;
+  const iss = parseInt($("s_issue").value, 10);
+  if (iss && (iss < 1 || iss > 12)) { set("bad", "Issue must be from 1 to 12: it sets the month."); return false; }
+  set("empty-note", "");
+  return !!iss && ["volume", "first_paper"].every(k => parseInt($("s_" + k).value, 10) > 0) && /^\d{4}$/.test($("s_year").value.trim());
+}
+let JOURNALS = {}, LOGOS = {};
+function markJournal() {
+  document.querySelectorAll("#journalGrid .template-card").forEach(c => {
+    const on = c.dataset.key === $("s_journal").value;
+    c.classList.toggle("active", on); c.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+}
+function renderJournals() {
+  $("journalGrid").replaceChildren(...Object.entries(JOURNALS).map(([key, name]) =>
+    h("button", { type: "button", class: "template-card", "data-key": key, "aria-pressed": "false", onclick: () => {
+      $("s_journal").value = key; markJournal();
+      $("settings").dispatchEvent(new Event("input", { bubbles: true }));
+    } }, h("img", { src: LOGOS[key], alt: "" }), h("span", {}, name))));
+}
+// The details save themselves as soon as they are complete.  `formTouched` is true while the form holds
+// something the server has not got yet; uploading waits for it.
+let formTouched = false, editSeq = 0, saveTimer = null;
+function savedMode(s) { return s.mode === "with" ? "with" : (s.mode === "without" ? "without" : (s.first_doi ? "with" : "without")); }
+function modeKeys() { return setMode === "with" ? ["journal", "first_doi", "first_page"] : ["journal", "volume", "issue", "year", "first_paper", "first_page"]; }
+function fillSettings(s) {
+  if (formTouched) { markJournal(); return; }             // don't overwrite what is being typed
+  SET_KEYS.forEach(k => { const el = $("s_" + k); if (document.activeElement !== el) el.value = s[k] || ""; });
+  markJournal();
+  setMode = savedMode(s);
+  applyMode(); showDerived();
+}
+function formSettings() {
+  const o = { mode: setMode }; SET_KEYS.forEach(k => o[k] = $("s_" + k).value.trim());
+  if (setMode === "without") o.first_doi = "";
+  return o;
+}
+function settingsDirty() {
+  const s = data ? data.settings : {};
+  return setMode !== savedMode(s) || modeKeys().some(k => ($("s_" + k).value.trim() || "") !== String(s[k] || ""));
+}
+function canUpload() { return !!(data && data.ready && !formTouched); }
+function updateDrop() {
+  drop.classList.toggle("off", !canUpload());
+  $("dropHint").textContent = canUpload() ? "Word files (.docx). You can add several at once." : "Fill in the issue details on the left first.";
+}
+async function autoSave() {
+  clearTimeout(saveTimer);
+  const mine = editSeq;
+  const valid = await showDerived();
+  if (mine !== editSeq) return;
+  if (!valid || !$("s_first_page").value.trim()) { updateDrop(); return; }
+  if (!settingsDirty()) { formTouched = false; updateDrop(); return; }
+  try {
+    const n = formSettings(), old = data.settings;
+    const r = await api(base() + "/settings", jsonOpts("PUT", n));
+    if (mine !== editSeq) return;                         // typed again meanwhile: that edit saves itself
+    formTouched = false;
+    batches = r.batches; renderBatches(); lastKey = ""; setData(r);
+    const header = ["journal", "volume", "issue", "year"].some(k => String(old[k] || "") !== String(r.settings[k] || ""));
+    log("Issue details saved: " + JOURNALS[r.settings.journal] + ", volume " + r.settings.volume + ", issue " + r.settings.issue + " (" + r.settings.month + ") " + r.settings.year + "."
+      + (header && r.papers.length ? " The papers are being formatted again." : ""), "success");
+  } catch (ex) { toast(ex.message, true); updateDrop(); }
+}
+function formEdited() { formTouched = true; editSeq++; updateDrop(); clearTimeout(saveTimer); saveTimer = setTimeout(autoSave, 600); }
+document.querySelectorAll("#modeToggle .mode-btn").forEach(b => b.addEventListener("click", () => {
+  if (b.dataset.mode === setMode) return;
+  setMode = b.dataset.mode;
+  ["first_doi", "volume", "issue", "year", "first_paper", "first_page"].forEach(k => { $("s_" + k).value = ""; });   // a fresh start in the other mode
+  applyMode(); formEdited();
+}));
+$("settings").addEventListener("input", formEdited);
+$("settings").addEventListener("submit", e => { e.preventDefault(); editSeq++; autoSave(); });
+
+/* ---------- upload ---------- */
+const drop = $("drop"), fileInput = $("files");
+async function upload(fileList) {
+  if (!canUpload()) { toast("Fill in the issue details first.", true); return; }
+  const fd = new FormData();
+  [...fileList].forEach(f => fd.append("papers", f));
+  try {
+    toast("Uploading " + fileList.length + " file(s)…");
+    const r = await api(base() + "/papers", { method: "POST", body: fd });
+    if (r.warning) toast(r.warning, true);
+    setData(r);
+    const hit = batches.find(b => b.id === cur); if (hit) hit.count = r.papers.length;
+    renderBatches();
+  } catch (ex) { toast(ex.message, true); }
+}
+fileInput.addEventListener("change", () => { if (fileInput.files.length) upload(fileInput.files); fileInput.value = ""; });
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => { if (e.dataTransfer.files.length) upload(e.dataTransfer.files); });
+drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
+drop.addEventListener("click", e => { if (!canUpload()) { e.preventDefault(); toast("Fill in the issue details first.", true); } });
+
+/* ---------- papers ---------- */
+function setData(d) {
+  data = d;
+  try { logChanges(d); } catch (e) {}
+  fillSettings(d.settings);
+  updateDrop();
+  renderPapers();
+  clearTimeout(pollTimer);
+  if (d.busy) pollTimer = setTimeout(poll, 1500);
+}
+async function poll() {
+  try { setData(await api(base())); } catch (e) { pollTimer = setTimeout(poll, 4000); }
+}
+function chip(p) {
+  if (p.status === "error") return h("span", { class: "chip err" }, "Problem");
+  if (p.status === "done" && p.pages != null) return p.flags.length
+    ? h("span", { class: "chip warn" }, p.flags.length + " to check") : h("span", { class: "chip ok" }, "Clean");
+  return h("span", { class: "chip work" }, p.stage || (p.status === "queued" ? "Waiting…" : "Working…"));
+}
+async function patch(pid, body) {
+  try { lastKey = ""; setData(await api(base() + "/papers/" + pid, jsonOpts("PATCH", body))); }
+  catch (ex) { toast(ex.message, true); poll(); }
+}
+async function act(pid, path, opts) {
+  try { lastKey = ""; setData(await api(base() + "/papers/" + pid + path, opts)); }
+  catch (ex) { toast(ex.message, true); }
+}
+function details(p) {
+  return h("div", { class: "detail" },
+    h("div", { class: "found" }, Object.entries(p.found || {}).map(([k, v]) => h("span", {}, h("b", {}, v), " " + k.toLowerCase()))),
+    h("h3", {}, "Needs your eye"),
+    p.flags.length
+      ? h("ul", {}, p.flags.map(f => h("li", { class: "flag" }, f.message + (f.more ? " (and " + f.more + " more like this)" : ""), f.near ? h("small", {}, "near: “" + f.near + "”") : null)))
+      : h("div", { class: "good" }, "Nothing was flagged."),
+    p.flags.length ? h("p", { class: "note" }, "Each flagged place also carries a comment in the Word file. Remove them with Review → Delete → Delete All Comments in Document.") : null,
+    h("h3", {}, "Fixed automatically"),
+    h("ul", {},
+      h("li", {}, "A4 page, margins, journal header and footer, page numbers"),
+      h("li", {}, "Title, authors, abstract, headings, captions, tables and references restyled and renumbered"),
+      (p.fixes || []).map(f => h("li", {}, f))));
+}
+const certOpen = new Set();      // papers whose certificate table is open
+const certDraft = {};            // edits not saved yet, per paper
+const KIND_LABEL = { all: "All certificates in one file", group: "One group certificate" };
+// Start several downloads one after another (the browser may ask once to allow multiple downloads).
+function downloadMany(paths) {
+  paths.forEach((path, i) => setTimeout(() => {
+    const a = document.createElement("a");
+    a.href = link(path); a.download = LocalApi.filename(path); a.style.display = "none";
+    document.body.append(a); a.click(); setTimeout(() => a.remove(), 1000);
+  }, i * 500));
+  toast("Downloading " + paths.length + " file" + (paths.length === 1 ? "" : "s") + "…");
+}
+function certPaths(p, entries) {
+  const out = [];
+  entries.forEach(e => {
+    const b = "/files/" + cur + "/" + p.id + "/cert?name=" + encodeURIComponent(e.stem) + "&fmt=";
+    out.push(b + "docx"); if (e.pdf) out.push(b + "pdf");
+  });
+  return out;
+}
+// Word files drawn in the page (docx-preview): `fit` is "width" (pages stacked) or "page" (one page fills the box).
+async function renderDocx(box, source, fit) {
+  box.replaceChildren();
+  const host = document.createElement("div");
+  box.append(host);
+  await docx.renderAsync(source, host, null, { className: "docx", inWrapper: false, ignoreWidth: false, ignoreHeight: false,
+    breakPages: true, useBase64URL: true, renderHeaders: true, renderFooters: true });
+  const secs = [...host.querySelectorAll("section.docx")];
+  const bw = box.clientWidth - (fit === "page" ? 0 : 8), bh = box.clientHeight;
+  secs.forEach(sec => {
+    const sw = sec.offsetWidth, sh = sec.offsetHeight;
+    const k = fit === "page" ? Math.min(bw / sw, bh / sh) : Math.min(1, bw / sw);
+    const pg = document.createElement("div");
+    pg.className = "pgbox";
+    pg.style.cssText = fit === "page" ? "height:100%;display:flex;align-items:center;justify-content:center" : "margin:0 auto 0.9rem";
+    const inner = document.createElement("div");
+    inner.style.cssText = "width:" + Math.round(sw * k) + "px;height:" + Math.round(sh * k) + "px;overflow:hidden;flex:none;box-shadow:0 2px 12px rgba(0,0,0,.45)";
+    sec.style.transformOrigin = "top left";
+    sec.style.transform = "scale(" + k + ")";
+    sec.style.margin = "0";
+    sec.replaceWith(pg);
+    pg.append(inner);
+    inner.append(sec);
+  });
+  host.replaceChildren(...[...host.querySelectorAll(".pgbox")]);
+  return secs.length;
+}
+// The certificate PDF drawn page by page (pdf.js): what is shown is the very file that gets downloaded.
+async function renderPdf(box, blob, fit) {
+  const token = box._tok = (box._tok || 0) + 1;            // only the newest drawing may fill the box
+  const pdf = await pdfjsLib.getDocument({ data: await blob.arrayBuffer() }).promise;
+  const bw = box.clientWidth - (fit === "page" ? 0 : 8), bh = box.clientHeight, dpr = window.devicePixelRatio || 1;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    if (box._tok !== token) return 0;
+    const page = await pdf.getPage(i);
+    const v1 = page.getViewport({ scale: 1 });
+    const k = fit === "page" ? Math.min(bw / v1.width, bh / v1.height) : Math.min(1.6, bw / v1.width);
+    const v = page.getViewport({ scale: k * dpr });
+    const cv = document.createElement("canvas");
+    cv.width = Math.floor(v.width); cv.height = Math.floor(v.height);
+    cv.style.cssText = "width:" + Math.floor(v.width / dpr) + "px;height:" + Math.floor(v.height / dpr) + "px;display:block;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.45)";
+    cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "Certificate " + i + " of " + pdf.numPages);
+    await page.render({ canvasContext: cv.getContext("2d"), viewport: v }).promise;
+    const pg = document.createElement("div");
+    pg.className = "pgbox";
+    pg.style.cssText = fit === "page" ? "height:100%;display:flex;align-items:center;justify-content:center" : "margin:0 auto 0.9rem;width:fit-content";
+    pg.append(cv);
+    pages.push(pg);
+  }
+  if (box._tok !== token) return 0;
+  box.replaceChildren(...pages);
+  return pdf.numPages;
+}
+async function renderCerts(box, p, fit) {
+  const all = p.certs.files.find(f => f.kind === "all");
+  const pdf = LocalApi.certPdf(p.id, all.stem);
+  if (pdf && window.pdfjsLib) return renderPdf(box, pdf, fit);
+  const docxSrc = LocalApi.certDocx(p.id, all.stem);
+  if (!docxSrc) throw new Error("The certificates are not ready.");
+  return renderDocx(box, docxSrc, fit);
+}
+async function previewCerts(p) {
+  const all = p.certs && p.certs.files ? p.certs.files.find(f => f.kind === "all") : null;
+  const src = all ? LocalApi.certDocx(p.id, all.stem) : null;
+  $("mTitle").textContent = "Certificates — " + (p.title || p.name);
+  $("mFlags").replaceChildren(h("h3", {}, "Certificates"),
+    ...((p.cert_data && p.cert_data.authors) || []).map((a, i) => h("div", { class: "good", style: "margin-bottom:.4rem" }, (i + 1) + ". " + a.name, h("small", { style: "display:block;opacity:.8" }, a.designation))));
+  modal.showModal();
+  if (!src) { $("mPages").replaceChildren(h("div", { class: "loading" }, "The certificates are not ready.")); return; }
+  $("mPages").replaceChildren(h("div", { class: "loading" }, "Preparing the preview…"));
+  try { await renderCerts($("mPages"), p, "width"); } catch (ex) { $("mPages").replaceChildren(h("div", { class: "loading" }, ex.message)); }
+}
+/* live preview of the "all certificates in one file" PDF of the selected paper */
+let cpSel = "", cpKey = "", cpRun = 0;
+function cpNote(text) { $("cpPages").replaceChildren(h("div", { class: "cpnote" }, text)); }
+function selectCert(id) {
+  cpSel = id;
+  document.querySelectorAll("#certList .certpaper").forEach(el => el.classList.toggle("sel", el.dataset.id === id));
+  updateCertPreview();
+}
+async function updateCertPreview() {
+  if ($("viewCerts").hidden || !data) return;            // only works while the tab is showing
+  const done = data.papers.filter(p => p.status === "done" && p.pages != null);
+  let p = done.find(x => x.id === cpSel);
+  if (!p && done.length) { p = done[0]; cpSel = p.id;
+    document.querySelectorAll("#certList .certpaper").forEach(el => el.classList.toggle("sel", el.dataset.id === cpSel)); }
+  if (!p) { cpSel = ""; cpKey = ""; $("cpTitle").textContent = "All certificates in one file"; cpNote("Nothing to preview yet."); return; }
+  const c = p.certs, key = cur + "|" + p.id + "|" + JSON.stringify(c || null);
+  if (key === cpKey) return;
+  cpKey = key;
+  const run = ++cpRun;
+  $("cpTitle").textContent = (p.paper_no != null ? "#" + p.paper_no + " · " : "") + (p.title || p.name);
+  if (!c || c.status === "working") { cpNote("Making the certificates…"); return; }
+  if (c.status === "error") { cpNote("The certificates could not be made: " + (c.error || "")); return; }
+  if (!c.files.some(f => f.kind === "all")) { cpNote("This paper has no all-in-one certificate file."); return; }
+  if (!$("cpPages").querySelector(".pgbox")) cpNote("Preparing the preview…");
+  try {
+    await renderCerts($("cpPages"), p, "page");
+    if (run !== cpRun) return;                           // a newer request has taken over
+    $("cpPages").scrollTop = 0;
+  } catch (ex) { if (run === cpRun) { cpKey = ""; cpNote(ex.message); } }
+}
+function showTab(name) {
+  const certs = name === "certs";
+  $("viewPapers").hidden = certs; $("viewCerts").hidden = !certs;
+  $("tabPapers").classList.toggle("active", !certs); $("tabCerts").classList.toggle("active", certs);
+  $("tabPapers").setAttribute("aria-selected", String(!certs)); $("tabCerts").setAttribute("aria-selected", String(certs));
+  if (certs) updateCertPreview();
+}
+$("tabPapers").addEventListener("click", () => showTab("papers"));
+$("tabCerts").addEventListener("click", () => showTab("certs"));
+function openCerts(p) {
+  cpSel = p.id;
+  showTab("certs");
+  selectCert(p.id);
+  const el = document.querySelector('#certList [data-id="' + p.id + '"]');
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function certCard(p) {
+  return h("article", { class: "card paper certpaper" + (p.id === cpSel ? " sel" : ""), "data-id": p.id,
+      onclick: () => { if (cpSel !== p.id) selectCert(p.id); } },
+    h("div", { class: "ptop" },
+      h("div", { class: "num" }, p.paper_no != null ? "#" + p.paper_no : "—"),
+      h("div", { class: "pmain" },
+        h("p", { class: "ptitle" }, p.title || p.name),
+        p.doi ? h("p", { class: "pfile" }, p.doi) : null)),
+    certBox(p));
+}
+function certLink(p, e, fmt, label) {
+  return h("a", { class: "linkbtn", href: "/files/" + cur + "/" + p.id + "/cert?name=" + encodeURIComponent(e.stem) + "&fmt=" + fmt }, label);
+}
+function certBox(p) {
+  const c = p.certs;
+  const box = h("div", { class: "certs" });
+  box.append(h("div", { class: "certhead" },
+    h("button", { class: "linkbtn", type: "button", onclick: () => {
+      if (certOpen.has(p.id)) certOpen.delete(p.id);
+      else { certOpen.add(p.id); certDraft[p.id] = JSON.parse(JSON.stringify(p.cert_data || { title: p.title, authors: [] })); }
+      lastKey = ""; renderPapers();
+    } }, certOpen.has(p.id) ? "Close" : "Check / edit names")));
+  if (c && c.status === "error") box.append(h("p", { class: "err-text" }, c.error));
+  const warns = [...((c && c.warnings) || [])];
+  if (warns.length) box.append(h("div", { class: "parse-warnings" }, warns.map(w => h("div", { class: "parse-warning" }, h("i", { class: "fa-solid fa-triangle-exclamation" }), " " + w))));
+  // Parsed Preview: what goes on the certificates, as in the certificate generator
+  const cd = p.cert_data || { title: p.title, authors: [] };
+  const cell = v => h("td", v ? { title: v } : { class: "cell-empty" }, v || "(empty)");
+  const st = data.settings || {};
+  box.append(h("p", { class: "certsub" }, h("i", { class: "fa-solid fa-table-list" }), " Parsed Preview"),
+    h("div", { class: "preview-table-wrap" }, h("table", { class: "preview-table" },
+      h("thead", {}, h("tr", {}, h("th", {}, "#"), h("th", {}, "Name"), h("th", {}, "Designation"), h("th", {}, "Paper Title"))),
+      h("tbody", {}, cd.authors.length
+        ? cd.authors.map((a, i) => h("tr", {}, h("td", {}, String(i + 1)), cell(a.name), cell(a.designation), cell(cd.title)))
+        : h("tr", {}, h("td", { colspan: "4", class: "cell-empty" }, "No authors were found. Use Check / edit names to add them."))))),
+    h("span", { class: "preview-pub-info" }, [p.doi ? "DOI " + p.doi : null, "Vol " + (st.volume || "—"), "Issue " + (st.issue || "—"),
+      (st.month || "—") + (st.year ? " " + st.year : "")].filter(Boolean).join("  ·  ")));
+  // Download: the generator's three options; each gives Word and PDF
+  if (c && c.status === "ok") {
+    const of = kind => c.files.filter(f => f.kind === kind);
+    const opt = (icon, title, sub, files) => h("button", { class: "download-option-btn", type: "button", disabled: !files.length, title: sub,
+      onclick: ev => { ev.stopPropagation(); downloadMany(certPaths(p, files)); } },
+      h("i", { class: "fa-solid " + icon }),
+      h("span", { class: "download-option-text" }, h("span", { class: "download-option-title" }, title)));
+    box.append(h("p", { class: "certsub" }, h("i", { class: "fa-solid fa-download" }), " Download"),
+      h("div", { class: "download-options" },
+        opt("fa-copy", "Individual", "Each certificate as its own file (Word + PDF)", of("single")),
+        opt("fa-file-word", "All in One", "Every certificate in one file (Word + PDF)", of("all")),
+        opt("fa-users", "Group", "One certificate listing every author (Word + PDF)", of("group"))));
+  }
+  if (certOpen.has(p.id)) box.append(certForm(p));
+  return box;
+}
+function certForm(p) {
+  const d = certDraft[p.id];
+  const form = h("div", { class: "certform" });
+  form.append(h("label", {}, "Paper title on the certificate"),
+    h("input", { type: "text", value: d.title || "", oninput: e => { d.title = e.target.value; } }),
+    h("p", { class: "certsub" }, "Authors (one certificate each)"));
+  d.authors.forEach((a, i) => {
+    form.append(h("div", { class: "row2" },
+      h("input", { type: "text", value: a.name, placeholder: "Name", "aria-label": "Name", oninput: e => { a.name = e.target.value; } }),
+      h("input", { type: "text", value: a.designation, placeholder: "Designation and college", "aria-label": "Designation", oninput: e => { a.designation = e.target.value; } }),
+      h("button", { class: "linkbtn", type: "button", "aria-label": "Remove author", onclick: () => { d.authors.splice(i, 1); lastKey = ""; renderPapers(); } }, "Remove")));
+  });
+  form.append(h("div", { class: "acts" },
+    h("button", { class: "linkbtn", type: "button", onclick: () => { d.authors.push({ name: "", designation: "" }); lastKey = ""; renderPapers(); } }, "Add author"),
+    h("button", { class: "linkbtn primary", type: "button", onclick: async () => {
+      try {
+        const r = await api(base() + "/papers/" + p.id + "/certdata", jsonOpts("PUT", d));
+        certOpen.delete(p.id); delete certDraft[p.id]; lastKey = ""; setData(r); toast("Making the certificates again…");
+      } catch (ex) { toast(ex.message, true); }
+    } }, "Save and re-make certificates"),
+    p.cert_manual ? h("button", { class: "linkbtn", type: "button", onclick: async () => {
+      try { certOpen.delete(p.id); delete certDraft[p.id]; lastKey = ""; setData(await api(base() + "/papers/" + p.id + "/certs/redo", jsonOpts("POST", { reset: true }))); }
+      catch (ex) { toast(ex.message, true); }
+    } }, "Back to what was read from the paper") : null));
+  return form;
+}
+const selAct = {};               // the button last used on each paper: only that one is highlighted
+function card(p, i, n) {
+  const on = k => selAct[p.id] === k ? " primary" : "";
+  const pick = (e, k) => {
+    selAct[p.id] = k;
+    const me = e.currentTarget;
+    me.parentNode.querySelectorAll(".linkbtn.primary").forEach(b => b.classList.remove("primary"));
+    me.classList.add("primary");
+  };
+  const done = p.status === "done" && p.pages != null;
+  const doi = h("input", { type: "text", id: "doi_" + p.id, value: p.doi.replace(prefixNow(), ""),
+    "aria-label": "DOI", disabled: !done,
+    onchange: e => patch(p.id, { doi: e.target.value.trim() }) });
+  const start = h("input", { type: "number", min: "1", value: p.start != null ? p.start : "", "aria-label": "First page", disabled: !done,
+    onchange: e => patch(p.id, { start: e.target.value }) });
+  const open = expanded.has(p.id);
+  const c = h("article", { class: "card paper", "data-id": p.id },
+    h("div", { class: "ptop" },
+      h("div", { class: "num" }, p.paper_no != null ? "#" + p.paper_no : "—"),
+      h("div", { class: "pmain" },
+        h("p", { class: "ptitle" }, p.title || p.name),
+        h("p", { class: "pfile" }, p.name)),
+      chip(p)),
+    p.error ? h("p", { class: "err-text" }, p.error) : null,
+    done ? h("div", { class: "prow" },
+      p.doi ? h("div", { class: "fld doi" }, h("div", { class: "doi-wrap" }, h("span", {}, prefixNow()), doi)) : null,
+      h("div", { class: "fld pgs" + (p.unsure && p.unsure.length && !p.pages_manual ? " unsure" : "") },
+        h("label", {}, p.pages_manual ? "Pages (yours)" : "Pages (estimate)"),
+        h("input", { type: "number", min: "1", max: "999", value: p.pages != null ? p.pages : "", "aria-label": "Number of pages of this paper in Word",
+          title: "The number of pages Word shows for this paper. Change it if Word shows a different number: the next papers are renumbered.",
+          onchange: e => patch(p.id, { pages: e.target.value }) }))) : null,
+    done && p.unsure && p.unsure.length && !p.pages_manual ? h("p", { class: "pgnote" }, "Check the page count in Word: " + p.unsure[0]) : null,
+    h("div", { class: "acts" },
+      h("button", { class: "linkbtn" + on("preview"), type: "button", disabled: !done, onclick: e => { pick(e, "preview"); preview(p); } }, "Preview"),
+      done ? h("button", { class: "linkbtn" + on("paper"), type: "button", title: "Download the formatted paper (Word)", "aria-label": "Download the formatted paper (Word)",
+        onclick: e => { pick(e, "paper"); downloadMany(["/files/" + cur + "/" + p.id + "/docx"]); } }, h("i", { class: "fa-solid fa-download" }), " Word") : null,
+      done ? h("button", { class: "linkbtn" + on("certs"), type: "button", title: "Open this paper's certificates", onclick: e => { pick(e, "certs"); openCerts(p); } }, h("i", { class: "fa-solid fa-award" }), " Certificates") : null,
+      done ? h("button", { class: "linkbtn" + on("all"), type: "button", title: "The paper, its report and all certificates (Word and PDF) in one ZIP",
+        onclick: async e => { pick(e, "all"); try { const z = await LocalApi.bundle(p.id); const a = document.createElement("a"); a.href = z.url; a.download = z.name; a.style.display = "none"; document.body.append(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(z.url); }, 4000); } catch (ex) { toast(ex.message, true); } } }, "Download everything") : null,
+      h("span", { class: "sp" }),
+      h("button", { class: "linkbtn", type: "button", disabled: i === 0, "aria-label": "Move up", title: "Move up", onclick: () => act(p.id, "/move", jsonOpts("POST", { dir: "up" })) }, "↑"),
+      h("button", { class: "linkbtn", type: "button", disabled: i === n - 1, "aria-label": "Move down", title: "Move down", onclick: () => act(p.id, "/move", jsonOpts("POST", { dir: "down" })) }, "↓"),
+      h("button", { class: "linkbtn", type: "button", title: "Clear everything and start the next one", onclick: nextTE }, "Next TE")),
+    done && open ? details(p) : null);
+  return c;
+}
+function renderPapers() {
+  const ps = data.papers;
+  const key = JSON.stringify([ps, data.settings.journal]) + [...expanded].join() + [...certOpen].join();
+  $("empty").hidden = ps.length > 0;
+  if (document.activeElement !== $("barPage")) $("barPage").value = data.settings.first_page || "";
+  $("bar").hidden = ps.length === 0;
+  if (key === lastKey) return;
+  const list = $("list"), clist = $("certList"), ae = document.activeElement;
+  if ((list.contains(ae) || clist.contains(ae)) && ["INPUT"].includes(ae.tagName)) return;  // don't disturb typing
+  lastKey = key;
+  list.replaceChildren(...ps.map((p, i) => card(p, i, ps.length)));
+  const done = ps.filter(p => p.status === "done" && p.pages != null);
+  clist.replaceChildren(...done.map(certCard));
+  $("certEmpty").hidden = done.length > 0;
+  $("cntPapers").textContent = ps.length;
+  $("cntCerts").textContent = done.filter(p => p.certs && p.certs.status === "ok").length;
+  updateCertPreview();
+  const pages = done.reduce((s, p) => s + p.pages, 0);
+  const flags = done.reduce((s, p) => s + p.flags.length, 0);
+  const first = done.length ? done[0].start : null, last = done.length ? done[done.length - 1].end : null;
+  $("stats").replaceChildren(h("span", {}, h("b", {}, ps.length), " paper" + (ps.length === 1 ? "" : "s"), " · ", h("b", {}, pages), " pages",
+    first != null ? [" (", h("b", {}, first + "–" + last), ")"] : ""));
+  document.querySelectorAll(".dl-all").forEach(b => { b.disabled = !done.length; });
+}
+// Every paper as Word + PDF, and every author's certificate as Word + PDF.
+function downloadAll() {
+  const paths = [];
+  data.papers.filter(p => p.status === "done" && p.pages != null).forEach(p => {
+    paths.push("/files/" + cur + "/" + p.id + "/docx");
+    if (p.certs && p.certs.status === "ok") paths.push(...certPaths(p, p.certs.files.filter(f => f.kind === "single")));
+  });
+  if (!paths.length) { toast("Nothing to download yet.", true); return; }
+  downloadMany(paths);
+}
+document.querySelectorAll(".dl-all").forEach(b => b.addEventListener("click", downloadAll));
+// Edit page#: change the first page number of the issue from the papers bar.
+async function savePageNo() {
+  const el = $("barPage"), v = el.value.trim(), old = String(data.settings.first_page || "");
+  if (v === old) return;
+  if (!/^[1-9]\d{0,3}$/.test(v)) { el.value = old; toast("The page number must be a whole number from 1 to 9999.", true); return; }
+  try {
+    const r = await api(base() + "/settings", jsonOpts("PUT", Object.assign({}, data.settings, { first_page: v })));
+    formTouched = false; batches = r.batches; lastKey = ""; setData(r);
+    log("Page numbers now start at " + v + ".", "success");
+  } catch (ex) { el.value = old; toast(ex.message, true); }
+}
+$("barPage").addEventListener("input", e => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4); });
+$("barPage").addEventListener("change", savePageNo);
+$("barPage").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } });
+// Next TE: clear everything and start the next one.
+async function nextTE() {
+  if (!confirm("Clear everything (all papers, certificates and issue details) and start the next one?")) return;
+  try {
+    clearTimeout(pollTimer); clearTimeout(saveTimer);
+    await api(base(), { method: "DELETE" });
+    const n = await api("/api/batches", jsonOpts("POST", {}));
+    batches = n.batches; formTouched = false; editSeq++;
+    certOpen.clear(); cpSel = ""; cpKey = "";
+    Object.keys(selAct).forEach(k => delete selAct[k]);
+    showTab("papers");
+    await openBatch(n.id);
+    $("logs").replaceChildren();
+    log("Cleared. Ready for the next one.", "success");
+  } catch (ex) { toast(ex.message, true); }
+}
+$("redoAll").addEventListener("click", async () => {
+  if (!confirm("Format every paper in this issue again?")) return;
+  for (const p of data.papers) await api(base() + "/papers/" + p.id + "/redo", jsonOpts("POST"));
+  lastKey = ""; poll();
+});
+
+/* ---------- preview ---------- */
+const modal = $("modal");
+$("mClose").addEventListener("click", () => modal.close());
+modal.addEventListener("click", e => { if (e.target === modal) modal.close(); });
+async function preview(p) {
+  $("mTitle").textContent = (p.title || p.name);
+  $("mPages").replaceChildren(h("div", { class: "loading" }, "Preparing the preview…"));
+  $("mFlags").replaceChildren(
+    h("h3", {}, p.flags.length ? "Needs your eye" : "All clear"),
+    ...(p.flags.length ? p.flags.map(f => h("div", { class: "flag" }, f.message + (f.more ? " (and " + f.more + " more)" : ""), f.near ? h("small", {}, "near: “" + f.near + "”") : null))
+                   : [h("div", { class: "good" }, "Nothing was flagged.")]),
+    h("p", { class: "note" }, "This preview is drawn by the browser and can differ slightly from Word (fonts, spacing). Open the Word file to check the final look."));
+  modal.showModal();
+  const src = LocalApi.docxBytes(p.id);
+  if (!src) { $("mPages").replaceChildren(h("div", { class: "loading" }, "The paper is not ready.")); return; }
+  try { await renderDocx($("mPages"), src, "width"); } catch (ex) { $("mPages").replaceChildren(h("div", { class: "loading" }, ex.message)); }
+}
+
+/* ---------- start ---------- */
+(async () => {
+  try {
+    log("Starting the formatter in this browser (the first visit loads about 15 MB)…");
+    window.Certs.warm();
+    const meta = await api("/api/meta");
+    log("Formatter ready.", "success");
+    PREFIXES = meta.prefixes; MONTHS = meta.months; JOURNALS = meta.journals; LOGOS = meta.logos;
+    renderJournals();
+    if (!meta.health.word) log("Neither Microsoft Word nor LibreOffice was found on the server: page counts and PDFs are not possible.", "error");
+    if (!meta.health.node) log("Node.js was not found on this computer: certificates cannot be made.", "error");
+    $("appVersion").textContent = "v" + meta.version;
+    let mine = "";
+    try { mine = sessionStorage.getItem("pf_cur") || ""; } catch (e) {}
+    const init = await api("/api/init?keep=" + encodeURIComponent(mine));
+    batches = init.batches;
+    let id = init.current;
+
+    await openBatch(id);
+  } catch (ex) { toast(ex.message, true); }
+})();
+</script>
+<script>
+// everything lives in this tab: warn before it is closed with papers in it, and say so if the browser cannot run the page
+(function () {
+  if (!window.Worker || !window.WebAssembly || !window.HTMLDialogElement) document.getElementById("compat").hidden = false;
+  window.addEventListener("beforeunload", function (e) {
+    if (typeof data !== "undefined" && data && data.papers && data.papers.length) { e.preventDefault(); e.returnValue = ""; }
+  });
+})();
+</script>
+</body>
+</html>
