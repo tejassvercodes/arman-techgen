@@ -29,9 +29,14 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "formatter"))
-from ijarcce_format import (format_paper, make_meta, ptext, certificate_data,  # noqa: E402
-                            DOI_PREFIXES, JOURNAL_NAMES, auto_doi as journal_auto_doi)
+try:
+    from ijarcce_format import (format_paper, make_meta, ptext, certificate_data,  # noqa: E402
+                                DOI_PREFIXES, JOURNAL_NAMES, auto_doi as journal_auto_doi)
+except ImportError:
+    from formatter.ijarcce_format import (format_paper, make_meta, ptext, certificate_data,  # noqa: E402
+                                          DOI_PREFIXES, JOURNAL_NAMES, auto_doi as journal_auto_doi)
 
 APP_VERSION = "2.0.0-cloud"
 HERE = Path(__file__).resolve().parent
@@ -853,19 +858,43 @@ def server_error(exc):
 
 @app.get("/")
 def index():
-    return send_from_directory(app.static_folder, "index.html", max_age=0)
+    for candidate in [
+        Path(app.static_folder) / "index.html",
+        HERE / "static" / "index.html",
+        ROOT / "webapp" / "static" / "index.html",
+        Path("webapp/static/index.html")
+    ]:
+        if candidate.exists():
+            return send_file(candidate, max_age=0)
+    return "<h1>Arman Paper Desk</h1><p>index.html not found</p>", 404
 
 
 @app.get("/config.js")
 def config_js():
-    return send_from_directory(app.static_folder, "config.js", max_age=0)
+    for candidate in [
+        Path(app.static_folder) / "config.js",
+        HERE / "static" / "config.js",
+        ROOT / "webapp" / "static" / "config.js",
+        Path("webapp/static/config.js")
+    ]:
+        if candidate.exists():
+            return send_file(candidate, max_age=0)
+    return "// config.js", 200, {"Content-Type": "application/javascript"}
 
 
 @app.get("/logos/<key>.jpg")
 def logo(key):
     if key not in CERT_KEYS.values():
         abort(404)
-    return send_from_directory(CERT_DIR / "logos", key + ".jpg", max_age=86400)
+    for candidate_dir in [
+        CERT_DIR / "logos",
+        ROOT / "certificate-generator" / "logos",
+        Path("certificate-generator/logos")
+    ]:
+        p = candidate_dir / (key + ".jpg")
+        if p.exists():
+            return send_file(p, max_age=86400)
+    abort(404)
 
 
 @app.get("/api/health")

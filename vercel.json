@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app.py": {
+      "includeFiles": [
+        "templates/**",
+        "certificate-generator/templates/**",
+        "certificate-generator/logos/**",
+        "webapp/**",
+        "formatter/**"
+      ]
+    }
+  }
+}
