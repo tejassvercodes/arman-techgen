@@ -35,7 +35,7 @@ DEFAULT_TEMPLATE = TEMPLATE_DIR / "CCE_production.docx"
 JOURNAL_TEMPLATES = {"ijarcce": DEFAULT_TEMPLATE, "iarjset": TEMPLATE_DIR / "IARJSET_production.docx",
                      "ijireeice": TEMPLATE_DIR / "IJIREEICE_production.docx",
                      "imrjr": TEMPLATE_DIR / "IMRJR_production.docx"}
-JOURNAL_NAMES = {"ijarcce": "IJARCCE", "iarjset": "IARJSET", "ijireeice": "IJIREEICE", "imrjr": "IMRJR"}
+JOURNAL_NAMES = {"ijarcce": "IJARCCE", "ijireeice": "IJIREEICE", "iarjset": "IARJSET", "imrjr": "IMRJR"}
 DOI_PREFIXES = {k: "10.17148/%s." % v for k, v in JOURNAL_NAMES.items()}
 
 
@@ -2155,6 +2155,8 @@ class Formatter:
             src = tpl_part(kind)
             dst = "word/ijarcce_%s.xml" % kind
             data = self.tpl[src].decode("utf8")
+            if not meta.get("DOI"):
+                data = strip_doi(data)                        # "Without DOI": no DOI line at all
             for key, val in meta.items():
                 data = data.replace("{{%s}}" % key, str(val))
             self.parts[dst] = data.encode("utf8")
@@ -2500,8 +2502,37 @@ def certificate_data(fm):
     return {"title": title, "authors": authors, "warnings": warnings}
 
 
-def make_meta(vol, issue, month, year, paper=None, start_page=None, doi=None, journal="ijarcce"):
-    if not doi:
+def strip_doi(xml):
+    """Header/footer XML without its DOI: a paragraph that is only "DOI: {{DOI}}" is removed, and a DOI
+    that shares a line ("... 2026  |  DOI {{DOI}}") is cut out of that line."""
+    if "{{DOI}}" not in xml:
+        return xml
+    root = etree.fromstring(xml.encode("utf8"))
+    for para in list(root.iter(w("p"))):
+        texts = [t for t in para.iter(w("t"))]
+        joined = "".join(t.text or "" for t in texts)
+        if "{{DOI}}" not in joined:
+            continue
+        plain = not any(True for _ in para.iter(w("drawing"))) and not any(True for _ in para.iter(w("pict")))
+        if plain and re.fullmatch(r"\s*DOI\s*:?\s*\{\{DOI\}\}\s*", joined, flags=re.I) and para.getparent() is not None \
+                and len(para.getparent().findall(w("p"))) > 1:
+            para.getparent().remove(para)
+            continue
+        m = re.search(r"\s*\|?\s*(?:DOI\s*:?\s*)?\{\{DOI\}\}", joined, flags=re.I)
+        pos = 0
+        for t in texts:                                       # delete the matched characters across the runs
+            txt = t.text or ""
+            a, b = max(m.start() - pos, 0), min(m.end() - pos, len(txt))
+            pos += len(txt)
+            if a < b:
+                t.text = txt[:a] + txt[b:]
+    return etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True).decode("utf8")
+
+
+def make_meta(vol, issue, month, year, paper=None, start_page=None, doi=None, journal="ijarcce", no_doi=False):
+    if no_doi:
+        doi = ""
+    elif not doi:
         doi = auto_doi(journal, year, vol, issue, paper) if paper else \
             "%s%s.%02d%sxx" % (DOI_PREFIXES[journal], year, int(vol), issue)
     return {"VOL": vol, "ISSUE": issue, "MONTH": month, "YEAR": year, "DOI": doi,

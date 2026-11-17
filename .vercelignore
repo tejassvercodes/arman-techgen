@@ -1,0 +1,16 @@
+dad_finals/
+student_originals/
+inbox/
+output/
+tests/
+*.ps1
+*.bat
+certificate-generator/.git
+certificate-generator/tools/
+webapp/data/batches/*
+webapp/data/logs/*
+issue.ini
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/

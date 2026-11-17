@@ -46,7 +46,7 @@ STYLES = {
                        {"b": True, "sz": "24"}),
     "IEEEAuthorAffiliation": ("IEEE Author Affiliation", "Normal",
                               {"jc": "center", "spacing": {"before": "0", "after": "0", "line": "360", "lineRule": "auto"}},
-                              {"i": True, "sz": "20"}),
+                              {"sz": "20"}),
     "IEEEAbtract": ("IEEE Abtract", "Normal",
                     {"jc": "both", "spacing": {"before": "0", "after": "0"}},
                     {"sz": "20"}),
